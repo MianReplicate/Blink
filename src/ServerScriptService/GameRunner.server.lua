@@ -137,7 +137,7 @@ RunService.Heartbeat:Connect(function()
 		local shouldFlicker = light:shouldFlicker()
 		light:queueFlicker(shouldFlicker)
 		
-		local strengthOfLight = light:getStrength(true)
+		-- local strengthOfLight = light:getStrength(true)
 		if(shouldFlicker) then
 			local flickerSfx : Sound = data:getValue("flickerSfx")
 			local newVolume = flickerSfx.Volume
