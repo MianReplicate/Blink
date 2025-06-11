@@ -24,7 +24,7 @@ local survivor = require(script.Survivor)
 local light = require(script.Light)
 local tool = require(script.Tool)
 
-local roundRagdolls = {}
+local roundRagdolls : {Model} = {}
 
 local survivors = DataCreator.newOrGet("List", "Survivors")
 local angels = DataCreator.newOrGet("List", "Angels")
@@ -48,7 +48,7 @@ function gameLibrary.getWebhook()
 	return webhook
 end
 
-function gameLibrary.getSurvivors(hasToBeAlive : boolean) : Survivors
+function gameLibrary.getSurvivors(hasToBeAlive : boolean?) : Survivors
 	local storage = survivors:getStorage()
 	local realStorage = {}
 	for character, survivor in storage do
@@ -61,7 +61,7 @@ function gameLibrary.getSurvivors(hasToBeAlive : boolean) : Survivors
 	return realStorage
 end
 
-function gameLibrary.getAngels(hasToBeAlive : boolean) : Angels
+function gameLibrary.getAngels(hasToBeAlive : boolean?) : Angels
 	local storage = angels:getStorage()
 	local realStorage = {}
 	for character, angel in storage do
@@ -89,8 +89,8 @@ function gameLibrary.createOrGetSurvivor(character : Model, player : Player?) : 
 	local foundSurvivor = survivors:getValue(character)
 	if(foundSurvivor) then return foundSurvivor :: Survivor end
 	
-	local humanoid : Humanoid = character:WaitForChild("Humanoid")
-	local animator : Animator = humanoid:FindFirstChild("Animator")
+	local humanoid : Humanoid = character:WaitForChild("Humanoid") :: Humanoid
+	local animator : Animator = humanoid:FindFirstChild("Animator") :: Animator
 	if(not animator) then
 		animator = Instance.new("Animator")
 		animator.Parent = humanoid
@@ -140,8 +140,8 @@ function gameLibrary.createOrGetAngel(character : Model, player : Player?) : Ang
 	local foundAngel = angels:getValue(character)
 	if(foundAngel) then return foundAngel :: Angel end
 
-	local humanoid : Humanoid = character:WaitForChild("Humanoid")
-	local animator : Animator = humanoid:FindFirstChild("Animator")
+	local humanoid : Humanoid = character:WaitForChild("Humanoid") :: Humanoid
+	local animator : Animator = humanoid:FindFirstChild("Animator") :: Animator
 	if(not animator) then
 		animator = Instance.new("Animator")
 		animator.Parent = humanoid
@@ -160,19 +160,20 @@ function gameLibrary.createOrGetAngel(character : Model, player : Player?) : Ang
 	data:setValue("beingWatchedBy", beingWatchedBy)
 	data:setValue("freeze", {})
 
-	angel.data = data
+	angel:setData(data)
 	angel:resetValues()
 	
-	for _, part : BasePart in character:GetChildren() do
+	for _, part in character:GetChildren() do
 		-- is the part a basepart and is angel frozen?
 		if(part:IsA("BasePart")) then
+			part = part :: BasePart
 			part.Touched:Connect(function(otherPart : BasePart)
-				if(not angel:isAllowedToKill()) then return end
+				if not angel:isAllowedToKill() or otherPart.Parent == nil then return end
 				
 				-- check if that character is behind a wall or not
 				local potentialSurvivor = otherPart.Parent
-				if(potentialSurvivor:IsA("Model") and potentialSurvivor:FindFirstChild("Humanoid")) then
-					local survivor : Survivor = gameLibrary.getRoleDataFromCharacter(potentialSurvivor, "Survivor")
+				if potentialSurvivor:IsA("Model") and potentialSurvivor:FindFirstChild("Humanoid") then
+					local survivor = gameLibrary.getRoleDataFromCharacter(potentialSurvivor, "Survivor") :: Survivor
 					if(survivor and not survivor:getData():getValue("dead") and otherPart.Name ~= "Handle" and (humanoid.RootPart.Position - otherPart.Position).Magnitude < 5 and Util.partRaycastsToPart(humanoid.RootPart, otherPart)) then
 						survivor:kill()
 					end
@@ -181,7 +182,7 @@ function gameLibrary.createOrGetAngel(character : Model, player : Player?) : Ang
 		end
 	end
 	
-	if(player) then
+	if player then
 		data:setValue("player", player)
 
 		local function isOwner(player : Player)
@@ -200,7 +201,7 @@ end
 
 function gameLibrary.createOrGetLight(lightModel : Model, lightPart : BasePart) : GameLight
 	local foundLight = lights:getValue(lightPart)
-	if(foundLight) then return foundLight :: GameLight end
+	if foundLight then return foundLight :: GameLight end
 	
 	local lightBulb = lightPart:FindFirstChildWhichIsA("PointLight", true) or lightPart:FindFirstChildWhichIsA("SurfaceLight", true) or lightPart:FindFirstChildWhichIsA("SpotLight", true)
 	Util.assert(lightBulb, `No lightbulb found for light part {lightPart}`)
@@ -222,14 +223,14 @@ function gameLibrary.createOrGetLight(lightModel : Model, lightPart : BasePart) 
 	data:setKeyChecks({"flickering"}, function() return true, true end)
 	data:setAccessCheck(function() return true end)
 	
-	light.data = data
+	light:setData(data)
 	light:resetValues()
 	
 	lights:setValue(lightPart, light)
 	return light
 end
 
-function gameLibrary.createOrGetTool(tool : Tool, toolType : string)
+function gameLibrary.createOrGetTool(tool : GameTool, toolType : string)
 	local foundTool = tools:getValue(tool)
 	if(foundTool) then return foundTool :: GameTool end
 	
@@ -285,7 +286,7 @@ function gameLibrary.changeIntoRole(player : Player, role : string, optionalPosi
 	return roleData
 end
 
-function gameLibrary.getRoleDataFromCharacter(character : Model, specificRole : string) : Angel | Survivor
+function gameLibrary.getRoleDataFromCharacter(character : Model, specificRole : string?) : Angel | Survivor
 	local roles = {
 		angel = angels,
 		survivor = survivors
@@ -299,7 +300,7 @@ function gameLibrary.getRoleDataFromCharacter(character : Model, specificRole : 
 end
 
 function gameLibrary.cleanUpRagdolls()
-	for _, ragdoll : Model in roundRagdolls do
+	for _, ragdoll in roundRagdolls do
 		ragdoll:Destroy()
 	end
 end

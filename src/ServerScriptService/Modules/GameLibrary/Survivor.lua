@@ -17,7 +17,8 @@ local survivor = {}
 
 -- Makes the Survivor blink
 function survivor:blink()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
+	
 	local track = self.blinkTrack :: AnimationTrack
 	if(not data:getValue("dead")) then
 		if(not data:getValue("blinking")) then
@@ -40,7 +41,7 @@ end
 -- Start straining a Survivor's eyes
 -- @param start : Whether to start or stop straining
 function survivor:queueStraining(start : boolean)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 
 	if(data:getValue("dead")) then return end
 
@@ -53,7 +54,7 @@ end
 
 -- Lets the survivor strain their eyes for slightly longer, increasing the meter but also making their eyes strain faster
 function survivor:strain()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 
 	if(data:getValue("dead")) then return end
 
@@ -67,7 +68,7 @@ end
 -- Sets the blink meter to a new value. This also changes the face animation
 -- @param newValue : The value to change to
 function survivor:setBlinkMeter(newValue : number)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 
 	if(data:getValue("dead")) then return end
 
@@ -86,13 +87,13 @@ function survivor:setBlinkMeter(newValue : number)
 end
 
 function survivor:isAlive()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	return not data:getValue("dead")
 end
 
 -- Kills the survivor
 function survivor:kill()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	if(not data:getValue("dead")) then
 		data:setValue("dead", true)
 		ServerUtil.removeWatchingAngelsForCharacter(data:getObject())
@@ -100,7 +101,7 @@ function survivor:kill()
 		local character : Model = data:getObject()
 		local clone = character:Clone()
 		character:Destroy()
-		local humanoid : Humanoid = clone:WaitForChild("Humanoid")
+		local humanoid = clone:WaitForChild("Humanoid")
 		-- avoid HRP colliding with UpperTorso on death
 		--clone.HumanoidRootPart.CanCollide = false
 
@@ -151,7 +152,7 @@ function survivor:kill()
 		if(player) then
 			task.spawn(pcall, function()
 				task.wait(Players.RespawnTime)
-				if(not player.Character:IsDescendantOf(game)) then
+				if(not player.Character or not player.Character:IsDescendantOf(game)) then
 					player:LoadCharacter()
 				end
 			end)
@@ -161,7 +162,7 @@ end
 
 -- Removes the survivor
 function survivor:remove()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	survivors:setValue(data:getObject(), nil)
 	local ragdoll : Model = data:getValue("ragdoll")
 	if(ragdoll) then
@@ -174,7 +175,7 @@ end
 
 -- Reset values to their default, used when the Survivor blinks
 function survivor:resetValues()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	data:setValue("maxBlinkMeter", 100)
 	data:setValue("blinkMeter", data:getValue("maxBlinkMeter"))
 	data:setValue("blinkResetTimer", .3)
@@ -192,6 +193,10 @@ end
 -- Returns the data for this survivor
 function survivor:getData() : DataCreator.Data
 	return self.data
+end
+
+function survivor:setData(data : DataCreator.Data)
+	self.data = data
 end
 
 export type Survivor = typeof(survivor)

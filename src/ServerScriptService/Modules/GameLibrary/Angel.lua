@@ -27,8 +27,8 @@ end
 
 local angel = {}
 
-function angel:editFreezeReason(reason : string, active : bool)
-	local data : DataCreator.Data = self:getData()
+function angel:editFreezeReason(reason : string, active : boolean)
+	local data = self:getData()
 
 	if(data:getValue("dead")) then return end
 
@@ -46,7 +46,7 @@ function angel:editFreezeReason(reason : string, active : bool)
 end
 
 function angel:shouldBeFrozen(... : string)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 
 	if(data:getValue("dead")) then return end
 
@@ -67,7 +67,7 @@ function angel:shouldBeFrozen(... : string)
 end
 
 function angel:isAllowedToKill()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 
 	if(data:getValue("dead")) then return end
 
@@ -75,17 +75,17 @@ function angel:isAllowedToKill()
 end
 
 function angel:setWalkSpeed(walkSpeed : number)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 
 	if(data:getValue("dead")) then return end
 
 	local character : Model = data:getObject()
-	local humanoid : Humanoid = character:WaitForChild("Humanoid")
+	local humanoid : Humanoid = character:WaitForChild("Humanoid") :: Humanoid
 	humanoid.WalkSpeed = walkSpeed
 end
 
 function angel:increaseEnergy(energy : number)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 
 	if(data:getValue("dead")) then return end
 	local value = data:getValue("energyMeter")
@@ -96,7 +96,7 @@ function angel:increaseEnergy(energy : number)
 end
 
 function angel:increaseEnergyOnKill()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 
 	if(data:getValue("dead")) then return end
 	
@@ -104,7 +104,7 @@ function angel:increaseEnergyOnKill()
 end
 
 function angel:getNearbyLights()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 
 	if(data:getValue("dead")) then return end
 	local lights = {}
@@ -119,7 +119,7 @@ function angel:getNearbyLights()
 end
 
 function angel:isInAVisibleLight()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 
 	if(data:getValue("dead")) then return end
 
@@ -133,7 +133,7 @@ function angel:isInAVisibleLight()
 end
 
 function angel:isNearbyLight()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 
 	if(data:getValue("dead")) then return end
 
@@ -147,7 +147,7 @@ function angel:isNearbyLight()
 end
 
 function angel:isAbilityEnabled(typeOfAbility : string)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	if(data:getValue("dead")) then return end
 	
 	local abilities : {Ability} = data:getValue("abilities")
@@ -157,7 +157,7 @@ function angel:isAbilityEnabled(typeOfAbility : string)
 end
 
 function angel:toggleAbility(typeOfAbility : string, enable : boolean)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	if(data:getValue("dead")) then return end
 	
 	local abilities : {Ability} = data:getValue("abilities")
@@ -184,19 +184,19 @@ function angel:toggleAbility(typeOfAbility : string, enable : boolean)
 end
 
 function angel:getAbilities() : {Ability}
-	local data : DataCreator.Data = self:getData()
-	if(data:getValue("dead")) then return end
+	local data = self:getData()
+	if(data:getValue("dead")) then return {} end
 	
 	return data:getValue("abilities")
 end
 
 function angel:isAlive()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	return not data:getValue("dead")
 end
 
 function angel:kill()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	if(not data:getValue("dead")) then
 		data:setValue("dead", true)
 		ServerUtil.removeWatchingAngelsForCharacter(data:getObject())
@@ -239,7 +239,7 @@ function angel:kill()
 		if(player) then
 			task.spawn(pcall, function()
 				task.wait(Players.RespawnTime)
-				if(not player.Character:IsDescendantOf(game)) then
+				if(not player.Character or not player.Character:IsDescendantOf(game)) then
 					player:LoadCharacter()
 				end
 			end)
@@ -248,7 +248,7 @@ function angel:kill()
 end
 
 function angel:remove()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	angels:setValue(data:getObject(), nil)
 	local tempBox = data:getValue("tempBox")
 	if(tempBox) then tempBox:Destroy() end
@@ -259,7 +259,7 @@ end
 
 -- Reset values to their default, used on initial creation
 function angel:resetValues()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	data:setValue("maxEnergyMeter", 100)
 	data:setValue("energyMeter", data:getValue("maxEnergyMeter"))
 
@@ -304,6 +304,10 @@ end
 -- Returns the data for this angel
 function angel:getData() : DataCreator.Data
 	return self.data
+end
+
+function angel:setData(data : DataCreator.Data)
+	self.data = data
 end
 
 export type Ability = {

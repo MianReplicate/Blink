@@ -23,7 +23,7 @@ local wasLockedInFirstPerson = false
 local function crawlForTable(key : any, tble : {[any]:any})
 	Iris.Tree({`{tostring(key)}`})
 	for _key, value in tble do
-		if(type(value) == 'table') then
+		if type(value) == 'table' then
 			crawlForTable(_key, value)
 		else
 			Iris.Text({`{tostring(_key)}: {tostring(value)}`})
@@ -34,8 +34,8 @@ end
 
 Iris.Init()
 Iris:Connect(function()
-	if(isVisible) then
-		if(editing.tag and editing.object and editing.key and editing.currentValue ~= nil) then
+	if isVisible then
+		if editing.tag and editing.object and editing.key and editing.currentValue ~= nil then
 
 			local editingWindow = Iris.Window({[Iris.Args.Window.Title]="Data Editor",[Iris.Args.Window.NoClose]=true},{size=Iris.State(Vector2.new(500, 250))})
 			Iris.Text(`Tag: {editing.tag}`)
@@ -45,19 +45,22 @@ Iris:Connect(function()
 			local inputBox = Iris.InputText({"New Value"})
 			local input = inputBox.state.text:get()
 			
-			if(not editing.started) then
+			if not editing.started then
 				inputBox.state.text:set(tostring(editing.currentValue))
 			end
 			
 			editing.started = true
 			
-			if(Iris.Button({"Confirm"}).clicked()) then
+			if Iris.Button({"Confirm"}).clicked() then
 				local value
 				
-				if(input) then
-					if(originalType == 'number') then value = tonumber(input) end
-					if(originalType == 'string') then value = tostring(input) end
-					if(originalType == 'boolean') then
+				if input then
+					if originalType == 'number' then 
+						value = tonumber(input) 
+					elseif originalType == 'string' then 
+						value = tostring(input) 
+					end
+					if originalType == 'boolean' then
 						local stringToBool = {
 							['true'] = true,
 							['false'] = false
@@ -66,7 +69,7 @@ Iris:Connect(function()
 					end
 				end
 				
-				if(value ~= nil) then
+				if value ~= nil then
 					local valueEdited : Types.ValueEdited = {
 						tag = editing.tag,
 						object = editing.object,
@@ -84,7 +87,7 @@ Iris:Connect(function()
 				editing.started = false
 			end
 			
-			if(Iris.Button({"Cancel"}).clicked()) then
+			if Iris.Button({"Cancel"}).clicked() then
 				for key, _ in editing do
 					editing[key] = nil
 				end
@@ -98,7 +101,7 @@ Iris:Connect(function()
 		local window = Iris.Window({[Iris.Args.Window.Title]="Data Viewer: F6 to hide/open window; F7 to unlock/lock mouse",[Iris.Args.Window.NoClose]=true},{size=Iris.State(Vector2.new(500, 500))})
 		local forgetInstanceNames = Iris.Checkbox({"Ignore Instance Names"}, {isChecked=Iris.State(false)})
 		
-		if(window.state.isOpened:get() and window.state.isUncollapsed:get()) then
+		if window.state.isOpened:get() and window.state.isUncollapsed:get() then
 			Iris.Text({"Now see, that's kinda cool, don't ya think?"})
 			
 			local storages = ClientDataCreator.getAllStorages()
@@ -112,11 +115,11 @@ Iris:Connect(function()
 				local tagTrees = {}
 				local foundUncollapsed = false
 				
-				if(storageFoundUncollapsed) then
+				if storageFoundUncollapsed then
 					storageTree.state.isUncollapsed:set(false)
 				end
 
-				if(storageTree.uncollapsed()) then
+				if storageTree.uncollapsed() then
 					storageFoundUncollapsed = storageTree
 					for _, _storageTree in storageTrees do
 						_storageTree.state.isUncollapsed:set(false)
@@ -126,11 +129,11 @@ Iris:Connect(function()
 				for tag, objectToData in tagToObjectToDatas do
 					local tagTree = Iris.Tree({tag})
 
-					if(foundUncollapsed) then
+					if foundUncollapsed then
 						tagTree.state.isUncollapsed:set(false)
 					end
 
-					if(tagTree.uncollapsed()) then
+					if tagTree.uncollapsed() then
 						foundUncollapsed = tagTree
 						for _, _tagTree in tagTrees do
 							_tagTree.state.isUncollapsed:set(false)
@@ -140,11 +143,10 @@ Iris:Connect(function()
 					local objectTrees = {}
 					local objectFoundUncollapsed = false
 
-					if(tagTree.state.isUncollapsed:get()) then
-					for object, data : ClientDataCreator.Data in objectToData do
-						local data : ClientDataCreator.Data = data
+					if tagTree.state.isUncollapsed:get() then
+					for object, data in objectToData do
 
-						if(not forgetInstanceNames.state.isChecked:get() and data:getObjectMetadata().isInstance) then
+						if not forgetInstanceNames.state.isChecked:get() and data:getObjectMetadata().isInstance then
 							object = ClientDataCreator.getInstanceFromUUID(object) or object
 						end
 

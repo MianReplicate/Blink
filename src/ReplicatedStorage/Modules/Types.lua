@@ -6,7 +6,7 @@ export type ReplicatedData = {
 	object : any,
 	storage : {[any]:any},
 	objectMetadata : ObjectMetadata,
-	version : number,
+	version : number | nil,
 }
 export type ReplicatedDataRemoving = {
 	tag : string,

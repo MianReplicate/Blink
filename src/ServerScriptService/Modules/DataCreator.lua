@@ -160,7 +160,7 @@ end
 -- @param If you want the UUID assigned for the object instead
 -- @return The object
 function data:getObject(uuidForm: boolean)
-	local object = self:getMetadata().object
+	local object : any = self:getMetadata().object
 	local toReturn
 	if(uuidForm) then
 		toReturn = object
@@ -297,7 +297,8 @@ function data:setAccessCheck(func : PlayerAllowed)
 		tag=self:getTag(),
 		object=self:getObject(true),
 		storage={},
-		objectMetadata=self:getObjectMetadata()
+		objectMetadata=self:getObjectMetadata(),
+		version = nil
 	}
 
 	for _, player in players do
@@ -325,7 +326,7 @@ end
 -- Replicates as much data to the player as allowed
 -- @param player : The player wanted to replicate to
 -- @param skipAdmin : Whether to not replicate to admins
-function data:replicateIfPossibleToPlayer(player : Player, skipAdmin : boolean)
+function data:replicateIfPossibleToPlayer(player : Player, skipAdmin : boolean?)
 	if(self:testAccessCheck(player)) then
 		local replicatedStorage = {}
 		
@@ -403,7 +404,7 @@ function data:remove()
 	
 	local metadata : Metadata = self:getMetadata() :: Metadata
 	metadata.active = false
-	metadata.onSetListeners = nil 
+	metadata.onSetListeners = nil
 	metadata.keyListeners = nil
 	storages[metadata.storageIdentifier][metadata.tag][metadata.object] = nil
 	
@@ -423,8 +424,8 @@ export type Metadata = {
 	object : any,
 	objectMetadata : Types.ObjectMetadata,
 	active : boolean,
-	keyListeners : {[any]:{Types.KeyListener}},
-	onSetListeners : {Types.OnSetListener},
+	keyListeners : {[any]:{Types.KeyListener}} | nil,
+	onSetListeners : {Types.OnSetListener} | nil,
 	keySanityChecks : {[any]:{PlayerAllowedWithValueCheck}},
 	accessSanityCheck : PlayerAllowed,
 	version : number
@@ -435,7 +436,7 @@ export type Metadata = {
 -- @param object : The object you want to create data for
 -- @param waitTime : How long you should wait for existing data before creating new data for the object
 -- @return New or existing data
-function helper.newOrGet(tag : string, object : any, waitTime : number?, storageIdentifier : string) : Data
+function helper.newOrGet(tag : string, object : any, waitTime : number?, storageIdentifier : string?) : Data
 	Util.assert(tag and object, "No tag or object provided for data..")
 	local success, data = pcall(helper.get, tag, object, waitTime, storageIdentifier)
 	return (success and data) or helper.new(tag, object, storageIdentifier)
@@ -445,16 +446,16 @@ end
 -- @param tag : The tag you want
 -- @param object : The object you want to create data for
 -- @return Newly created data
-function helper.new(tag : string, object : any, storageIdentifier : string) : Data
+function helper.new(tag : string, object : any, storageIdentifier : string?) : Data
 	Util.assert(tag and object ~= nil, "No tag or object provided for data..")
-	local tagToDatas = storages[storageIdentifier] or storages.default
+	local tagToDatas = (storageIdentifier and storages[storageIdentifier]) or storages.default
 	tagToDatas[tag] = tagToDatas[tag] or {}
 	local list = tagToDatas[tag]
 	local existingData = list[object]
 	Util.assert(not existingData, `Data already exists for given tag and object: {tag}, {object}`)
 	
 	local data : Data = Util.deepClone(data)
-	
+
 	local isInstance = typeof(object)=="Instance"
 	
 	data.storage = {}
@@ -490,9 +491,9 @@ end
 -- @param object : The object you want to create data for
 -- @param waitTime : How long you should wait if the data could not be found on first attempt
 -- @return Existing data
-function helper.get(tag : any, object : any , waitTime : number?, storageIdentifier : string) : Data
+function helper.get(tag : any, object : any , waitTime : number?, storageIdentifier : string?) : Data
 	Util.assert(tag and object, "No tag or object provided for data..")
-	local tagToDatas = storages[storageIdentifier] or storages.default
+	local tagToDatas = (storageIdentifier and storages[storageIdentifier]) or storages.default
 	tagToDatas[tag] = tagToDatas[tag] or {}
 	local list = tagToDatas[tag]
 	if(typeof(object)=='Instance') then

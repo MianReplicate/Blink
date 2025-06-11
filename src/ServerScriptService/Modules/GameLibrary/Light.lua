@@ -20,7 +20,7 @@ function light:isOn()
 end
 
 function light:getPosition()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	local lightInstance = data:getObject()
 	local posToUse = lightInstance.Position
 
@@ -43,7 +43,7 @@ function light:getPosition()
 end
 
 function light:isNearbyLight(character : Model)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	local lightInstance = data:getObject()
 	local hrp = character:FindFirstChild("HumanoidRootPart")
 	if(hrp) then
@@ -55,7 +55,7 @@ function light:isNearbyLight(character : Model)
 end
 
 function light:isInLight(character : Model)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	local lightInstance = data:getObject()
 	local hrp = character:FindFirstChild("HumanoidRootPart")
 	if(hrp and lightInstance:IsDescendantOf(workspace)) then
@@ -79,25 +79,25 @@ function light:isInLight(character : Model)
 end
 
 function light:getStrengthModifier(modifierIdentifier : any)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	local strengthModifiers = data:getValue("strengthModifiers")
 	return strengthModifiers[modifierIdentifier]
 end
 
 function light:setStrengthModifier(modifierIdentifier : any, modifierValue : number)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	local strengthModifiers = data:getValue("strengthModifiers")
 	strengthModifiers[modifierIdentifier] = modifierValue
 end
 
 function light:removeStrengthModifier(modifierIdentifier : any)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	local strengthModifiers = data:getValue("strengthModifiers")
 	strengthModifiers[modifierIdentifier] = nil
 end
 
 function light:getStrengthModifiers()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	local strength = 0
 	local strengthModifiers = data:getValue("strengthModifiers")
 	for _, num in strengthModifiers do
@@ -107,7 +107,7 @@ function light:getStrengthModifiers()
 end
 
 function light:getStrength(modifiersApplied : boolean) : number
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	local strength = data:getValue("baseStrength")
 	if(modifiersApplied) then
 		strength += self:getStrengthModifiers()
@@ -131,10 +131,10 @@ function light:roll()
 	return roll
 end
 
-function light:editFlickerReason(reason : string, active : bool)
-	local data : DataCreator.Data = self:getData()
+function light:editFlickerReason(reason : string, active : boolean)
+	local data = self:getData()
 
-	local flicker : DataCreator.Data = data:getValue("flicker")
+	local flicker = data:getValue("flicker")
 	if(flicker) then
 		if(active) then
 			if(not table.find(flicker, reason)) then table.insert(flicker, reason) end
@@ -148,7 +148,7 @@ function light:editFlickerReason(reason : string, active : bool)
 end
 
 function light:shouldFlicker(... : string)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 
 	local reasons = {...}
 	local flicker : {string} = data:getValue("flicker")
@@ -168,7 +168,7 @@ end
 
 -- Handled by ConstantRunner
 function light:queueFlicker(start : boolean)
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	if(data:getValue("flickering") == start) then return end
 	
 	if(start) then
@@ -196,7 +196,7 @@ function light:getBulb() : (PointLight | SurfaceLight | SpotLight)
 end
 
 function light:remove()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	lights:setValue(data:getObject(), nil)
 	data:remove()
 	table.freeze(self)
@@ -204,7 +204,7 @@ function light:remove()
 end
 
 function light:resetValues()
-	local data : DataCreator.Data = self:getData()
+	local data = self:getData()
 	data:setValue("baseStrength", 25)
 	data:setValue("strengthModifiers", {})
 	data:setValue("flickering", false)
@@ -214,6 +214,10 @@ end
 
 function light:getData() : DataCreator.Data
 	return self.data
+end
+
+function light:setData(data : DataCreator.Data)
+	self.data = data
 end
 
 return light

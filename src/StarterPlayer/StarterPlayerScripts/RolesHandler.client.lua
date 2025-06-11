@@ -101,16 +101,16 @@ local function handleCharacterWithRole(character : Model, role : string)
 end
 
 local function handleAllCharacters()
-	for key, value in Survivors:getStorage() do
+	for key, _ in Survivors:getStorage() do
 		key = ClientDataCreator.getInstanceFromUUID(key, true)
-		if(key ~= nil) then
+		if key ~= nil and typeof(key) == 'instance' then
 			task.spawn(handleCharacterWithRole, key, "Survivor")
 		end
 	end
 
-	for key, value in Angels:getStorage() do
+	for key, _ in Angels:getStorage() do
 		key = ClientDataCreator.getInstanceFromUUID(key, true)
-		if(key ~= nil) then
+		if key ~= nil and typeof(key) == 'instance' then
 			task.spawn(handleCharacterWithRole, key, "Angel")
 		end
 	end
@@ -205,13 +205,13 @@ local function resetScreen()
 end
 
 Angels:onSet(function(key, oldValue, newValue)
-	if(key ~= nil) then
+	if key ~= nil and typeof(key) == 'instance' then
 		handleCharacterWithRole(key, "Angel")
 	end	
 end)
 
 Survivors:onSet(function(key, oldValue, newValue) 
-	if(key ~= nil) then
+	if key ~= nil and typeof(key) == 'instance' then
 		handleCharacterWithRole(key, "Survivor")
 	end	
 end)
@@ -443,9 +443,13 @@ RoleCommunication.packets.RoleChange.listen(function(role : string)
 	local currentMusicVolume = 0.5
 	
 	addRoleConnection(RunService.RenderStepped:Connect(function()
-		if(not data.metadata.active or data:getValue("blinking")) then watching = {} return end
+		if not data.metadata.active or data:getValue("blinking") then watching = {} return end
+		if not Player.Character:FindFirstChild("HumanoidRootPart") then return end
+
 		for key, value in Angels:getStorage() do
 			key = ClientDataCreator.getInstanceFromUUID(key)
+			if not Player.Character:FindFirstChild("HumanoidRootPart") then return end
+
 			if(key ~= nil and key ~= Player.Character) then
 				local angelCharacter : Model = key :: Model
 				local raycastParams = RaycastParams.new()
@@ -454,8 +458,9 @@ RoleCommunication.packets.RoleChange.listen(function(role : string)
 				raycastParams:AddToFilter(visionExcludables:getStorage(true))
 				
 				local angel = ClientDataCreator.get("Angel", angelCharacter)
-				
-				if(angel and not angel:getValue("dead") and (Util.playerSeesPart(angelCharacter.HumanoidRootPart) or Util.partSeesPart(Player.Character.HumanoidRootPart, angelCharacter.HumanoidRootPart)) and Util.partRaycastsToPart(Player.Character.HumanoidRootPart, angelCharacter.HumanoidRootPart, raycastParams)) then
+				if not Player.Character:FindFirstChild("HumanoidRootPart") then return end
+
+				if angel and not angel:getValue("dead") and (Util.playerSeesPart(angelCharacter.HumanoidRootPart) or Util.partSeesPart(Player.Character.HumanoidRootPart, angelCharacter.HumanoidRootPart)) and Util.partRaycastsToPart(Player.Character.HumanoidRootPart, angelCharacter.HumanoidRootPart, raycastParams) then
 					task.spawn(function()
 						if(currentRole == 'Survivor') then
 							if(angel:getValue("frozen")) then

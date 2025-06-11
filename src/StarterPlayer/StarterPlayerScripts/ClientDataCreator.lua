@@ -43,15 +43,15 @@ function data:valueChanged(key : any, oldValue : any?, value : any)
 	self:isRunnable()
 	key = helper.getInstanceFromUUID(key, true) or key
 	
-	if(oldValue) then
+	if oldValue then
 		oldValue = helper.getInstanceFromUUID(oldValue, true) or oldValue
 	end
-	if(value) then
+	if value then
 		value = helper.getInstanceFromUUID(value, true) or value
 	end
 	
 	local keyListeners = self:getMetadata().keyListeners[key]
-	if(keyListeners) then
+	if keyListeners then
 		for _, listener in keyListeners do
 			listener(oldValue, value)
 		end
@@ -67,11 +67,11 @@ end
 -- @param value : What you want to put within the data
 function data:setValue(key : any, value : any)
 	self:isRunnable()
-	if(key and typeof(key) == 'Instance') then
+	if key and typeof(key) == 'Instance' then
 		key = helper.generateOrGetExistingUUID(key)
 	end
 
-	if(value and typeof(value) == 'Instance') then
+	if value and typeof(value) == 'Instance' then
 		value = helper.generateOrGetExistingUUID(value)
 	end
 	local oldValue = self.storage[key]
@@ -435,7 +435,7 @@ end
 -- Gets an instance from its UUID
 -- @param uuid : The UUID given
 -- @return An instance assigned to the UUID if there is one
-function helper.getInstanceFromUUID(uuid : string, yield : boolean)
+function helper.getInstanceFromUUID(uuid : string, yield : boolean?)
 	if(not helper.isValidUUID(uuid)) then return nil end
 	
 	local instance = UUIDsToInstances[uuid]
@@ -451,7 +451,7 @@ end
 -- Get a UUID from its instance
 -- @param instance : The instance given
 -- @return A UUID if the instance has one
-function helper.getUUIDFromInstance(instance : Instance, yield : boolean) : string?
+function helper.getUUIDFromInstance(instance : Instance, yield : boolean?) : string?
 	if(typeof(instance) ~= "Instance") then return nil end
 	local uuid = nil
 	for _uuid, _instance in UUIDsToInstances do

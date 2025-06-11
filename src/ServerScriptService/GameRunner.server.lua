@@ -92,7 +92,7 @@ local function commonRole(data : (GameLibrary.Survivor | GameLibrary.Angel))
 		else
 			for _, angel in GameLibrary.getAngels(true) do
 				if(angel and angel:getData() ~= dataFromData) then
-					local beingWatchedBy : DataCreator.Data = angel:getData():getValue("beingWatchedBy")
+					local beingWatchedBy = angel:getData():getValue("beingWatchedBy") :: DataCreator.Data
 					local raycastParams = RaycastParams.new()
 					raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 					raycastParams:AddToFilter(character)
