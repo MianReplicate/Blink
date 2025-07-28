@@ -13,12 +13,13 @@ local GameLibrary = require(Modules:WaitForChild("GameLibrary"))
 local DataCreator = require(Modules:WaitForChild("DataCreator"))
 local RoleCommunication = require(RModules:WaitForChild("RoleCommunication"))
 local ServerUtil = require(Modules:WaitForChild("ServerUtil"))
-local AI = require(Modules:WaitForChild("AI"))
+-- local AI = require(Modules:WaitForChild("AI"))
 
-local aiList = DataCreator.get("List", "AI")
+-- local aiList = DataCreator.get("List", "AI")
 local lightExcludables = DataCreator.get("List", "LightExcludables")
 local visionExcludables = DataCreator.get("List", "VisionExcludables")
 local roundData = DataCreator.new("Round", "Data")
+
 roundData:setValue("timer", 0)
 roundData:setValue("state", nil)
 roundData:setKeyChecks({"timer"}, function() return true, true end)
@@ -115,6 +116,7 @@ end
 
 RunService.Heartbeat:Connect(function()
 	
+	-- Handle lights
 	local lights = GameLibrary.getLights()
 	for model, light in lights do
 		local data = light:getData()
@@ -194,6 +196,7 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 	
+	-- Handle survivors
 	local survivors = GameLibrary.getSurvivors(true)
 	for character, survivor in survivors do
 		local humanoid : Humanoid = character:FindFirstChildWhichIsA("Humanoid")
@@ -229,6 +232,7 @@ RunService.Heartbeat:Connect(function()
 		commonRole(survivor)
 	end
 	
+	-- Handle angels
 	local angels = GameLibrary.getAngels(true)
 	for character, angel in angels do
 		local humanoid : Humanoid = character:FindFirstChildWhichIsA("Humanoid")
@@ -237,7 +241,8 @@ RunService.Heartbeat:Connect(function()
 		local beingWatchedBy = data:getValue("beingWatchedBy")
 		angel:editFreezeReason("watched", Util.length(beingWatchedBy:getStorage()) > 0)
 		angel:editFreezeReason("inLight", angel:isInAVisibleLight())
-
+		-- print(angel:isInAVisibleLight())
+		
 		if(humanoid) then
 
 			local newWalkSpeed
@@ -334,15 +339,16 @@ RunService.Heartbeat:Connect(function()
 		commonRole(angel)
 	end
 	
-	for _, ai : DataCreator.Data in aiList:getStorage() do
-		local goals = ai:getValue("Goals")
-		local goalsRun = nil --{}
-		for name, goal in goals do
-			local success = goal(ai, goalsRun)
-			Util.assert(success ~= nil, `{name} did not return whether it was successful or not. Your goal is bugged bruh.`)
-			if(success) then break end
+	-- for _, ai : DataCreator.Data in aiList:getStorage() do
+	-- 	local goals = ai:getValue("Goals")
+	-- 	local goalsRun = nil --{}
+	-- 	for name, goal in goals do
+	-- 		local success = goal(ai, goalsRun)
+	-- 		Util.assert(success ~= nil, `{name} did not return whether it was successful or not. Your goal is bugged bruh.`)
+	-- 		if(success) then break end
 			--goalsRun[name] = success
-		end
-	end
+		-- end
+	-- end
+
 	-- handle timer here :sunglasses:	
 end)

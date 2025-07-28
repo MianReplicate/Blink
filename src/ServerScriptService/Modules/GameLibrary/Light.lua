@@ -16,7 +16,7 @@ local light = {}
 
 function light:isOn()
 	local lightInstance = self:getBulb()
-	return lightInstance.Enabled and lightInstance.Brightness > 0
+	return lightInstance.Enabled and lightInstance.Brightness > 0 and lightInstance:IsDescendantOf(workspace)
 end
 
 function light:getPosition()

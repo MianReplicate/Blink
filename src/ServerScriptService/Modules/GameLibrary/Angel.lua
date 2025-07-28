@@ -125,6 +125,8 @@ function angel:isInAVisibleLight()
 
 	for _, light in getLights() do
 		if(light:isInLight(data:getObject()) and light:isOn()) then
+			print(light:getData():getValue("model"))
+		
 			return true
 		end
 	end
