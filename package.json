@@ -32,6 +32,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@rbxts/iris": "^2.3.1-ts.1",
     "@rbxts/services": "^1.5.5"
   }
 }
