@@ -4,3 +4,4 @@
 *.tsbuildinfo
 src/shared/DataCreator.ts
 src/server/ServerDataCreator.ts
+src/server/test.server.ts
