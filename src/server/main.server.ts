@@ -1,15 +1,21 @@
 import { Players, Workspace } from "@rbxts/services";
-import { DataObject } from "shared/DataManager";
+import { DataObject, Valuable } from "shared/DataManager";
 import { makeHello } from "shared/module";
 import { ServerDataObject } from "./ServerDataManager";
 
 const newData = ServerDataObject.construct<Instance>(Workspace.WaitForChild("Baseplate"));
-newData.setReplicateCriteriaForKey("hello", ["default"]);
-newData.setEditorCriteriaForKey("hello", ["default"]);
-newData.addListener("hello", (key, value) => print(key, value));
-newData.setValue("hello", true);
+newData.setReplicateCriteriaForKey("health", ["default"]);
+task.wait(2);
+newData.setValue("health", { health: 100, maxHealth: 100 });
+newData.setValue("health", { health: 50, maxHealth: 100 });
+task.wait(1);
+newData.destroy();
+// newData.setReplicateCriteriaForKey("hello", ["default"]);
+// newData.setEditorCriteriaForKey("hello", ["default"]);
+// newData.addListener("hello", (key, value) => print(key, value));
+// newData.setValue("hello", true);
 
-// for (let i = 0; i < 100; i++) {
+// for (let i = 0; i < 10; i++) {
 // 	const newData = ServerDataObject.construct<string>("" + i);
 // 	newData.setReplicateCriteriaForKeys(["test", "test1", "test2", "test3"], ["default"]);
 
