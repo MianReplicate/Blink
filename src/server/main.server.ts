@@ -3,13 +3,59 @@ import { DataObject, Valuable } from "shared/DataManager";
 import { makeHello } from "shared/module";
 import { ServerDataObject } from "./ServerDataManager";
 
-const newData = ServerDataObject.construct<Instance>(Workspace.WaitForChild("Baseplate"));
-newData.setReplicateCriteriaForKey("health", ["default"]);
-task.wait(2);
-newData.setValue("health", { health: 100, maxHealth: 100 });
-newData.setValue("health", { health: 50, maxHealth: 100 });
-task.wait(1);
-newData.destroy();
+// let d = 1;
+// const d = "daw";
+
+// Workspace.Baseplate.Touched.Connect((otherPart) => {
+// 	print(otherPart);
+// });
+
+// print("d");
+
+class Actor{
+    private readonly player: Player;
+
+    constructor(player: Player){
+        this.player = player;
+    }
+
+    public getPlayer(){
+        return this.player;
+    }
+}
+
+class Survivor extends Actor{
+
+    public blink(){
+
+    }
+}
+
+class Angel extends Actor{
+
+    public flicker(){
+        print("flicker");
+    }
+}
+
+Players.PlayerAdded.Connect((player) => {
+    const angel = new Angel(player);
+    const survivor = new Survivor(player);
+
+    survivor.getPlayer();
+    angel.getPlayer();
+    
+    survivor.blink();
+    angel.flicker();
+})
+
+// const newData = ServerDataObject.construct<Instance>(Workspace.WaitForChild("Baseplate"));
+// newData.setReplicateCriteriaForKey("health", ["default"]);
+// task.wait(2);
+// newData.setValue("health", { health: 100, maxHealth: 100 });
+// newData.setValue("health", { health: 50, maxHealth: 100 });
+// task.wait(1);
+// newData.destroy();
 // newData.setReplicateCriteriaForKey("hello", ["default"]);
 // newData.setEditorCriteriaForKey("hello", ["default"]);
 // newData.addListener("hello", (key, value) => print(key, value));
