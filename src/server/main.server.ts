@@ -1,33 +1,68 @@
 import { Players, Workspace } from "@rbxts/services";
-import { DataObject, Valuable } from "shared/DataManager";
+import { DataManager, DataObject, Valuable } from "shared/DataManager";
 import { makeHello } from "shared/module";
 import { ServerDataObject } from "./ServerDataManager";
 
-const newData = ServerDataObject.construct<Instance>(Workspace.WaitForChild("Baseplate"));
-newData.setCriteriaForDataObject(() => true);
-newData.setPlayerCriteriaForKey("health", (player) => {
-	return { canSeeKey: false, canSeeValue: true, canEditValue: true };
+Players.PlayerAdded.Connect((player) => {
+	const survivor = ServerDataObject.getOrConstruct<Instance>(player, ["Survivor"]);
+	const playerData = ServerDataObject.getOrConstruct<Instance>(player, ["Player"]);
+
+	const predicate = (plr: Player) => plr.UserId === player.UserId;
+
+	survivor.setCriteriaForDataObject(predicate);
+	playerData.setCriteriaForDataObject(predicate);
+
+	survivor.setPlayerCriteriaForKeys(["health", "blinkMeter"], (plr) => {
+		if (predicate(plr)) {
+			return { canSeeKey: true, canSeeValue: true, canEditValue: false };
+		}
+		return { canSeeKey: false, canSeeValue: false, canEditValue: false };
+	});
+
+	playerData.setPlayerCriteriaForKeys(["coins"], (plr) => {
+		if (predicate(plr)) {
+			return { canSeeKey: true, canSeeValue: true, canEditValue: false };
+		}
+		return { canSeeKey: false, canSeeValue: false, canEditValue: false };
+	});
+
+	task.wait(2);
+	survivor.setValue("health", 50);
+	survivor.setValue("blinkMeter", 10);
+
+	playerData.setValue("coins", 10);
 });
 
-newData.setValue("health", 100);
+// const survivor = ServerDataObject.getOrConstruct<Instance>(Workspace.WaitForChild("Baseplate"), ["Angel"]);
+// const player = ServerDataObject.getOrConstruct<Instance>(Workspace.WaitForChild("Baseplate"), [
+// 	"Player",
+// 	"Health",
+// ]);
 
-class Survivor {
-	private data: ServerDataObject<Instance>;
+// print(DataManager.getDataObject(Workspace.Baseplate, ["Angel"]));
+// print(DataManager.getDataObject(Workspace.Baseplate, ["Angel", "Health"]));
+// newData.setCriteriaForDataObject(() => true);
+// newData.setPlayerCriteriaForKey("health", (player) => {
+// 	return { canSeeKey: false, canSeeValue: true, canEditValue: true };
+// });
 
-	constructor(player: Player) {
-		this.data = ServerDataObject.construct(player);
+// class Survivor {
+// 	private data: ServerDataObject<Instance>;
 
-		// this.data.setReplicateCriteriaForKey("health", ["default"]);
-		this.data.addListener({
-			callback: (key, value, oldValue) => {
-				print(key, value, oldValue);
-			},
-		});
-		this.data.setValue("health", 100);
-	}
-}
+// 	constructor(player: Player) {
+// 		this.data = ServerDataObject.getOrConstruct(player);
 
-Players.PlayerAdded.Connect((player) => new Survivor(player));
+// 		// this.data.setReplicateCriteriaForKey("health", ["default"]);
+// 		this.data.addListener({
+// 			callback: (key, value, oldValue) => {
+// 				print(key, value, oldValue);
+// 			},
+// 		});
+// 		// this.data.setValue("health", 100);
+// 	}
+// }
+
+// Players.PlayerAdded.Connect((player) => new Survivor(player));
 
 // newData.setReplicateCriteriaForKey("health", ["default"]);
 // task.wait(2);

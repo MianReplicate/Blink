@@ -5,11 +5,11 @@ import { ClientDataObject } from "./ClientDataManager";
 
 // print(makeHello("main.client.ts"));
 
-const object = ClientDataObject.waitFor(Workspace.WaitForChild("Baseplate"), 5);
+// const object = ClientDataObject.waitFor(Workspace.WaitForChild("Baseplate"), 5);
 // print(object?.getValue("grr"));
 // task.wait(3);
-print("Requesting edit!");
-print(object?.setValue("health", 300));
+// print("Requesting edit!");
+// print(object?.setValue("health", 300));
 
 // const survivor = ClientDataObject.waitFor(Players.WaitForChild("MianReplicate"), 5);
 // survivor?.addListener({ callback: (key, value, oldValue) => print(key, value, oldValue) });

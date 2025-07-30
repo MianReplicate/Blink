@@ -1,19 +1,13 @@
 import Object from "@rbxts/object-utils";
 import { HttpService, Players, Workspace } from "@rbxts/services";
+import { DataManager, DataObject, Debug, Holdable, Keyable, Valuable } from "shared/DataManager";
 import {
-	ActiveDataObjects,
-	AddTickable,
-	DataObject,
-	Debug,
 	EditFunction,
-	Holdable,
 	HoldableProxy,
-	Keyable,
 	ReplicatedDataObject,
 	ReplicatedDataObjects,
 	ReplicateToPlayer,
-	Valuable,
-} from "shared/DataManager";
+} from "shared/ReplicateManager";
 
 type PlayerAccessorPredicate = (player: Player) => boolean;
 type PlayerKeyPredicate = (player: Player) => PlayerKeyAccessibility;
@@ -27,8 +21,8 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 	private dirtyKeys: Set<Keyable>;
 	private uuid: string | undefined;
 
-	protected constructor(holder: T) {
-		super(holder);
+	protected constructor(holder: T, tags: Array<string>) {
+		super(holder, tags);
 		this.keyAccessibilities = new Map();
 		this.dirtyKeys = new Set();
 		this.accessor = () => false;
@@ -38,17 +32,30 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 		}
 	}
 
-	public static construct<T extends Holdable>(holder: T): ServerDataObject<T> {
-		if (ActiveDataObjects.has(holder)) {
-			return ActiveDataObjects.get(holder) as ServerDataObject<T>;
-		}
-		return new ServerDataObject<T>(holder);
+	public static getOrConstruct<T extends Holdable>(
+		holder: T,
+		tags: Array<string>,
+		createCallback = () => new ServerDataObject<T>(holder, tags),
+	): ServerDataObject<T> {
+		return super.getOrConstruct(holder, tags, createCallback) as ServerDataObject<T>;
 	}
 
-	public static waitFor<T extends Holdable>(holder: T, secondsToWait: number): ServerDataObject<T> | undefined {
-		const dataObject = super.waitFor(holder, secondsToWait);
-		if (dataObject === undefined) return dataObject;
+	public static waitFor<T extends Holdable>(
+		holder: T,
+		tags: Array<string>,
+		secondsToWait: number = math.huge,
+	): ServerDataObject<T> | undefined {
+		const dataObject = super.waitFor(holder, tags, secondsToWait);
+		if (dataObject === undefined) return undefined;
 		return dataObject as ServerDataObject<T>;
+	}
+
+	public getInProxyForm(): HoldableProxy {
+		const holder = this.getHolder();
+		const tags = this.getTags();
+		const uuid = this.uuid;
+
+		return { holder, tags, uuid };
 	}
 
 	public override setValue(key: Keyable, value: Valuable): void {
@@ -104,8 +111,10 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 				ServerDataObject.GetPlayerKeyAccessibilities(players, criterias),
 			).filter((entry) => accessorPlayers.includes(entry[0]));
 
-			let value = this.getValue(key);
+			let value = this.getValue<Valuable>(key);
 			if (typeIs(value, "Instance")) value = value.GetAttribute("uuid") as string;
+
+			const toUse = typeIs(key, "Instance") ? (key.GetAttribute("uuid") as string) : key;
 
 			matchingPlayers.forEach((entry) => {
 				const player = entry[0];
@@ -117,14 +126,11 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 						storage = new Map();
 						playerStorageMap.set(player, storage);
 					}
-					storage.set(key, accessibility.canSeeValue ? value : "unreplicated");
+
+					storage.set(toUse, accessibility.canSeeValue ? value : "unreplicated");
 				}
 			});
 		});
-
-		// const uuid = this.uuid;
-		// const holderProxy: HoldableProxy = { holder, uuid };
-		// playerStorageMap.forEach((storage, player) => ReplicateToPlayer(player, { holderProxy, storage }));
 
 		this.dirtyKeys.clear();
 
@@ -137,7 +143,7 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 	public static flushAll() {
 		const playerToDataObjects = new Map<Player, ReplicatedDataObjects>();
 
-		ActiveDataObjects.forEach((dataObject) => {
+		DataManager.getDataObjects().forEach((dataObject) => {
 			if (dataObject instanceof ServerDataObject) {
 				const playerStorageMap = dataObject.flush();
 				playerStorageMap?.forEach((storage, player) => {
@@ -147,9 +153,7 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 						playerToDataObjects.set(player, dataObjects);
 					}
 
-					const holder = dataObject.getHolder();
-					const uuid = dataObject.uuid;
-					const holderProxy: HoldableProxy = { holder, uuid };
+					const holderProxy = dataObject.getInProxyForm();
 					dataObjects.push({ holderProxy, pendingGC: false, storage });
 				});
 			}
@@ -157,9 +161,7 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 
 		PendingGCFlush.forEach((dataObject) => {
 			if (dataObject instanceof ServerDataObject) {
-				const holder = dataObject.getHolder();
-				const uuid = dataObject.uuid;
-				const holderProxy: HoldableProxy = { holder, uuid };
+				const holderProxy = dataObject.getInProxyForm();
 				const object: ReplicatedDataObject = { holderProxy, pendingGC: true, storage: undefined };
 
 				Players.GetPlayers().forEach((player) => {
@@ -189,7 +191,7 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 	public static syncAllForNewPlayer(player: Player) {
 		const objects = new Array<ReplicatedDataObject>();
 
-		ActiveDataObjects.forEach((dataObject, holder) => {
+		DataManager.getDataObjects().forEach((dataObject, holder) => {
 			if (dataObject instanceof ServerDataObject) {
 				const storage: Map<Keyable, Valuable> = new Map();
 
@@ -201,8 +203,7 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 						}
 					});
 
-					const uuid = dataObject.uuid;
-					const holderProxy: HoldableProxy = { holder, uuid };
+					const holderProxy = dataObject.getInProxyForm();
 					const replicatedDataObject: ReplicatedDataObject = { holderProxy, pendingGC: false, storage };
 					objects.push(replicatedDataObject);
 				}
@@ -276,11 +277,11 @@ Workspace.DescendantAdded.Connect((instance) => GenerateIDForInstance(instance))
 
 Workspace.GetDescendants().forEach((instance) => GenerateIDForInstance(instance));
 
-AddTickable("[Flush Data Objects]", (tickable) => ServerDataObject.flushAll());
+DataManager.AddTickable("[Flush Data Objects]", (tickable) => ServerDataObject.flushAll());
 
-EditFunction.OnServerInvoke = function (player: Player, holder: unknown, key: unknown, value: unknown) {
-	const holderCast = holder as Holdable;
-	const dataObject = ActiveDataObjects.get(holderCast);
+EditFunction.OnServerInvoke = function (player: Player, holderProxy: unknown, key: unknown, value: unknown) {
+	const holderCast = holderProxy as HoldableProxy;
+	const dataObject = DataManager.getDataObject(holderCast.holder, holderCast.tags);
 	if (dataObject !== undefined && dataObject instanceof ServerDataObject) {
 		return dataObject.tryToEditKey(player, key as Keyable, value as Valuable);
 	}

@@ -1,18 +1,8 @@
 import { CollectionService, Workspace } from "@rbxts/services";
-import {
-	ActiveDataObjects,
-	DataObject,
-	Debug,
-	EditFunction,
-	Holdable,
-	Keyable,
-	ReplicatedDataObject,
-	ReplicatedDataObjects,
-	ReplicateEvent,
-	Valuable,
-} from "shared/DataManager";
+import { DataManager, DataObject, Debug, Holdable, Keyable, Valuable } from "shared/DataManager";
+import { EditFunction, ReplicatedDataObjects, ReplicateEvent } from "shared/ReplicateManager";
 
-const AwaitingToSync: Map<string, Map<Keyable, Valuable>> = new Map();
+const AwaitingToSync: Map<string, { tags: Array<string>; storage: Map<Keyable, Valuable> }> = new Map();
 
 export namespace ClientDataManager {
 	export function Init(): undefined {}
@@ -20,22 +10,23 @@ export namespace ClientDataManager {
 
 export class ClientDataObject<T extends Holdable> extends DataObject<T> {
 	private isASyncedObject: boolean = false;
-
-	public static construct<T extends Holdable>(holder: T, forSync?: boolean): ClientDataObject<T> {
-		if (ActiveDataObjects.has(holder)) {
-			return ActiveDataObjects.get(holder) as ClientDataObject<T>;
-		}
-		const object = new ClientDataObject<T>(holder);
-		object.setIsForSyncing(forSync !== undefined ? forSync : false);
-		return object;
+	public static deserializeAndConstruct() {}
+	public static getOrConstruct<T extends Holdable>(
+		holder: T,
+		tags: Array<string>,
+		createCallback = () => new ClientDataObject<T>(holder, tags),
+	): ClientDataObject<T> {
+		return super.getOrConstruct(holder, tags, createCallback) as ClientDataObject<T>;
 	}
-
-	public static waitFor<T extends Holdable>(holder: T, secondsToWait: number): ClientDataObject<T> | undefined {
-		const dataObject = super.waitFor(holder, secondsToWait);
+	public static waitFor<T extends Holdable>(
+		holder: T,
+		tags: Array<string>,
+		secondsToWait: number = math.huge,
+	): ClientDataObject<T> | undefined {
+		const dataObject = super.waitFor(holder, tags, secondsToWait);
 		if (dataObject === undefined) return dataObject;
 		return dataObject as ClientDataObject<T>;
 	}
-
 	/**
 	 * Set a key to a value. If this is a object that is currently being synced, this setValue will REQUEST the server to change the value. These will only go through if the player is allowed to change the value.
 	 * @param key The key to set for this value
@@ -44,7 +35,6 @@ export class ClientDataObject<T extends Holdable> extends DataObject<T> {
 	 */
 	public override setValue(key: Keyable, value: Valuable, fromServer: boolean = false): boolean {
 		if (this.isPendingGC()) return false;
-
 		if (!this.isASyncedObject || fromServer) {
 			super.setValue(key, value);
 			return true;
@@ -52,7 +42,6 @@ export class ClientDataObject<T extends Holdable> extends DataObject<T> {
 			return EditFunction.InvokeServer(this.getHolder(), key, value);
 		}
 	}
-
 	/**
 	 * Get the requested value as an instance if it is a UUID
 	 * @param key The key for the instance
@@ -60,18 +49,15 @@ export class ClientDataObject<T extends Holdable> extends DataObject<T> {
 	 */
 	public getValueAsInstance(key: Keyable): Valuable {
 		if (this.isPendingGC()) return;
-
 		const value = super.getValue(key);
 		return CollectionService.GetTagged(value as string)[0];
 	}
-
 	/**
 	 * Set whether the data object is a synced object or not
 	 * @param sync Whether this data object is synced with the server or not
 	 */
 	public setIsForSyncing(sync: boolean) {
 		if (this.isPendingGC()) return;
-
 		this.isASyncedObject = sync;
 	}
 }
@@ -83,14 +69,15 @@ ReplicateEvent.OnClientEvent.Connect((replicatedObjects: ReplicatedDataObjects) 
 		const proxy = replicatedObject.holderProxy;
 		if (replicatedObject.pendingGC) {
 			if (proxy.holder !== undefined) {
-				const object = ActiveDataObjects.get(proxy.holder);
+				const object = DataManager.getDataObject(proxy.holder, proxy.tags);
 				object?.destroy();
 			}
 		} else if (replicatedObject.storage !== undefined) {
 			if (proxy.holder === undefined && proxy.uuid !== undefined) {
-				AwaitingToSync.set(proxy.uuid, replicatedObject.storage);
+				AwaitingToSync.set(proxy.uuid, { tags: proxy.tags, storage: replicatedObject.storage });
 			} else {
-				const dataObject = ClientDataObject.construct(proxy.holder, true);
+				const dataObject = ClientDataObject.getOrConstruct(proxy.holder, proxy.tags);
+				dataObject.setIsForSyncing(true);
 
 				// if ("key" in replicatedObject) {
 				// replicatedKey
@@ -107,12 +94,11 @@ ReplicateEvent.OnClientEvent.Connect((replicatedObjects: ReplicatedDataObjects) 
 Workspace.DescendantAdded.Connect((descendant) => {
 	const uuid = descendant.GetAttribute("uuid") as string;
 	if (uuid === undefined) return;
-	const storageToSync = AwaitingToSync.get(uuid);
-	if (storageToSync !== undefined) {
+	const toSync = AwaitingToSync.get(uuid);
+	if (toSync !== undefined) {
 		AwaitingToSync.delete(uuid);
-		const dataObject = ClientDataObject.construct(descendant, true);
-		storageToSync.forEach((value, key) => dataObject.setValue(key, value, true));
+		const dataObject = ClientDataObject.getOrConstruct(descendant, toSync.tags);
+		dataObject.setIsForSyncing(true);
+		toSync.storage.forEach((value, key) => dataObject.setValue(key, value, true));
 	}
 });
-
-// ReplicateEvent.FireServer(); // tell the server we are ready

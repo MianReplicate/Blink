@@ -1,6 +1,6 @@
 import Iris from "@rbxts/iris";
 import { WindowArguments } from "@rbxts/iris/src/lib/widgets/window";
-import { ActiveDataObjects, DataObject } from "shared/DataManager";
+import { DataManager, DataObject } from "shared/DataManager";
 import { Players, UserInputService } from "@rbxts/services";
 import { ClientDataManager, ClientDataObject } from "./ClientDataManager";
 
@@ -22,14 +22,14 @@ Iris.Connect(() => {
 		if (window.state.isOpened.get() && window.state.isUncollapsed.get()) {
 			Iris.Text(["Now see, that's kinda cool, don't ya think?"]);
 
-			ActiveDataObjects.forEach((dataObject) => {
+			DataManager.getDataObjects().forEach((dataObject) => {
 				const holder = dataObject.getHolder();
 				const isInstance = typeIs(holder, "Instance");
 				const name = isInstance ? holder.Name : holder;
 				const objectTree = Iris.Tree([name]);
 
 				if (objectTree.state.isUncollapsed.get()) {
-					Iris.Text(["Name: " + name]);
+					// Iris.Text(["Name: " + name]);
 					Iris.Text(["Is Instance: " + isInstance]);
 
 					const storageTree = Iris.Tree(["Storage"]);

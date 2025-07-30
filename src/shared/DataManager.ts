@@ -1,15 +1,18 @@
+// test netwokring capabilities
+// maybe implement serializing and deserializing for data saving
+
 import Object from "@rbxts/object-utils";
 import { HttpService, ReplicatedStorage, RunService, Workspace } from "@rbxts/services";
+import { HoldableProxy } from "./ReplicateManager";
 
 type Listener = {
 	key?: Keyable | undefined;
 	callback: (key: Keyable, value: Valuable, oldValue: Valuable | undefined) => void;
 };
 
-export type HoldableProxy = { holder: Holdable; uuid: string | undefined };
 export type Holdable = Instance | string;
-export type Keyable = string | number;
-export type Valuable = Instance | string | number | boolean | Valuable[] | { [key: Keyable]: Valuable } | undefined;
+export type Keyable = Holdable | number;
+export type Valuable = Instance | string | number | boolean | Valuable[] | Map<Keyable, Valuable> | undefined;
 export type Tickable = (deltaTime: number) => void;
 
 export const toDebug = true;
@@ -20,41 +23,50 @@ export const toDebug = true;
 // 	value: Valuable;
 // };
 
-export type ReplicatedDataObjects = Array<ReplicatedDataObject>;
-export type ReplicatedDataObject = {
-	holderProxy: HoldableProxy;
-	pendingGC: boolean;
-	storage: Map<Keyable, Valuable> | undefined;
-};
-
-export const ReplicateEvent =
-	(ReplicatedStorage.FindFirstChild("ReplicateEvent") as RemoteEvent) || new Instance("RemoteEvent");
-ReplicateEvent.Name = "ReplicateEvent";
-ReplicateEvent.Parent = ReplicatedStorage;
-
-export const EditFunction =
-	(ReplicatedStorage.FindFirstChild("EditFunction") as RemoteFunction) || new Instance("RemoteFunction");
-EditFunction.Name = "EditFunction";
-EditFunction.Parent = ReplicatedStorage;
-
-const ToTick = new Map<string, Tickable>();
-let ToTickEntries = new Array<[string, Tickable]>();
-
-export const ActiveDataObjects: Map<Holdable, DataObject<Holdable>> = new Map();
-
 export function Debug(...args: Array<unknown>) {
 	if (toDebug) print(...args);
 }
 
-export function ReplicateToPlayer(player: Player, toReplicate: ReplicatedDataObjects) {
-	ReplicateEvent.FireClient(player, toReplicate);
-}
+export namespace DataManager {
+	const ToTick = new Map<string, Tickable>();
+	export let ToTickEntries = new Array<[string, Tickable]>();
 
-export function AddTickable(name: string, tickable: Tickable) {
-	ToTick.set(name, tickable);
-	ToTickEntries = Object.entries(ToTick);
+	const DataObjects: Array<DataObject<Holdable>> = new Array();
 
-	print("Added " + name + " for ticking");
+	export function findDataObject(holder: Holdable, tags: Array<string>): number {
+		return DataObjects.findIndex(
+			(dataObject) =>
+				dataObject.getHolder() === holder &&
+				dataObject.getTags().size() === tags.size() &&
+				dataObject.getTags().every((value, index) => tags[index] === value),
+		);
+	}
+
+	export function removeDataObject(dataObject: DataObject<Holdable>) {
+		const index = findDataObject(dataObject.getHolder(), dataObject.getTags());
+		DataObjects.remove(index);
+	}
+
+	export function addDataObject(dataObject: DataObject<Holdable>) {
+		DataObjects.push(dataObject);
+	}
+
+	export function getDataObject(holder: Holdable, tags: Array<string>): DataObject<Holdable> | undefined {
+		const index = findDataObject(holder, tags);
+		if (index !== -1) return DataObjects[index];
+		return undefined;
+	}
+
+	export function getDataObjects() {
+		return DataObjects;
+	}
+
+	export function AddTickable(name: string, tickable: Tickable) {
+		ToTick.set(name, tickable);
+		ToTickEntries = Object.entries(ToTick);
+
+		print("Added " + name + " for ticking");
+	}
 }
 
 /**
@@ -65,29 +77,35 @@ export class DataObject<T extends Holdable> {
 	private storage: Map<Keyable, Valuable>;
 	private listeners: Map<string, Listener>;
 	private pendingGC: boolean;
+	private tags: Array<string>;
 
 	/**
 	 * Constructs a new data object
 	 * @param holder The holder of this data
 	 */
-	protected constructor(holder: T) {
+	protected constructor(holder: T, tags: Array<string>) {
 		this.holder = holder;
 		this.storage = new Map();
 		this.listeners = new Map();
 		this.pendingGC = false;
-		ActiveDataObjects.set(this.holder, this);
+		this.tags = tags;
+
+		DataManager.addDataObject(this);
 	}
 
 	/**
-	 * Constructs a new data object
+	 * Gets or constructs a new data object for a holder
 	 * @param holder The object to create data for
-	 * @returns A new data object of the holder
+	 * @param parentDataObject? The parent that should be responsible for this data object if there is one
+	 * @returns A data object of the holder
 	 */
-	public static construct<T extends Holdable>(holder: T): DataObject<T> {
-		if (ActiveDataObjects.has(holder)) {
-			return ActiveDataObjects.get(holder) as DataObject<T>;
-		}
-		return new DataObject<T>(holder);
+	public static getOrConstruct<T extends Holdable>(
+		holder: T,
+		tags: Array<string>,
+		createCallback = () => new DataObject<T>(holder, tags),
+	): DataObject<T> {
+		const object = DataManager.getDataObject(holder, tags);
+		return object !== undefined ? (object as DataObject<T>) : createCallback();
 	}
 
 	/**
@@ -96,12 +114,16 @@ export class DataObject<T extends Holdable> {
 	 * @param secondsToWait How long to wait for this holder to exist
 	 * @returns The existing holder
 	 */
-	public static waitFor<T extends Holdable>(holder: T, secondsToWait: number): DataObject<T> | undefined {
+	public static waitFor<T extends Holdable>(
+		holder: T,
+		tags: Array<string>,
+		secondsToWait: number = math.huge,
+	): DataObject<T> | undefined {
 		let dataObject: DataObject<T> | undefined = undefined;
 		const heartbeat = RunService.Heartbeat.Connect((deltaTime) => {
 			secondsToWait -= deltaTime;
 
-			dataObject = ActiveDataObjects.get(holder) as DataObject<T>;
+			dataObject = DataManager.getDataObject(holder, tags) as DataObject<T>;
 
 			if (secondsToWait <= 0 || dataObject !== undefined) heartbeat.Disconnect();
 		});
@@ -117,7 +139,8 @@ export class DataObject<T extends Holdable> {
 	 */
 	public destroy() {
 		this.pendingGC = true;
-		ActiveDataObjects.delete(this.holder);
+
+		DataManager.removeDataObject(this);
 		this.listeners.clear();
 		this.storage.clear();
 	}
@@ -138,11 +161,24 @@ export class DataObject<T extends Holdable> {
 	public setValue(key: Keyable, value: Valuable) {
 		if (this.pendingGC) return;
 		const oldValue = this.storage.get(key);
+
 		this.storage.set(key, value);
 
 		this.listeners.forEach((listener) => {
 			if (listener.key === undefined || listener.key === key) {
 				listener.callback(key, value, oldValue);
+			}
+		});
+	}
+
+	public removeKey(key: Keyable) {
+		if (this.pendingGC) return;
+		const oldValue = this.storage.get(key);
+		this.storage.delete(key);
+
+		this.listeners.forEach((listener) => {
+			if (listener.key === undefined || listener.key === key) {
+				listener.callback(key, "deleted", oldValue);
 			}
 		});
 	}
@@ -165,8 +201,8 @@ export class DataObject<T extends Holdable> {
 	 * @param key The key used to store the value
 	 * @returns The value assigned to the key
 	 */
-	public getValue(key: Keyable): Valuable {
-		return this.storage.get(key);
+	public getValue<Valuable>(key: Keyable): Valuable {
+		return this.storage.get(key) as Valuable;
 	}
 
 	/**
@@ -181,6 +217,10 @@ export class DataObject<T extends Holdable> {
 		this.listeners.set(uuid, listener);
 
 		return () => this.listeners.delete(uuid);
+	}
+
+	public getTags() {
+		return this.tags;
 	}
 
 	/**
@@ -202,7 +242,7 @@ export class DataObject<T extends Holdable> {
 
 RunService.Heartbeat.Connect((deltaTime) => {
 	// end is highest priority (runs first), beginning is lowest priority (runs last)
-	for (let i = ToTickEntries.size() - 1; i >= 0; i--) {
-		ToTickEntries[i][1](deltaTime);
+	for (let i = DataManager.ToTickEntries.size() - 1; i >= 0; i--) {
+		DataManager.ToTickEntries[i][1](deltaTime);
 	}
 });
