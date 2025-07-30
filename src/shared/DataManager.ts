@@ -34,12 +34,10 @@ export namespace DataManager {
 	const DataObjects: Array<DataObject<Holdable>> = new Array();
 
 	export function findDataObject(holder: Holdable, tags: Array<string>): number {
-		return DataObjects.findIndex(
-			(dataObject) =>
-				dataObject.getHolder() === holder &&
-				dataObject.getTags().size() === tags.size() &&
-				dataObject.getTags().every((value, index) => tags[index] === value),
-		);
+		return DataObjects.findIndex((dataObject) => {
+			const compareTags = dataObject.getTags();
+			return dataObject.getHolder() === holder && tags.every((tag) => compareTags.includes(tag));
+		});
 	}
 
 	export function removeDataObject(dataObject: DataObject<Holdable>) {
