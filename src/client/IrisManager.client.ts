@@ -3,6 +3,7 @@ import { WindowArguments } from "@rbxts/iris/src/lib/widgets/window";
 import { DataManager, DataObject } from "shared/DataManager";
 import { Players, UserInputService } from "@rbxts/services";
 import { ClientDataManager, ClientDataObject } from "./ClientDataManager";
+import { Object, String } from "@rbxts/luau-polyfill";
 
 ClientDataManager.Init();
 
@@ -20,30 +21,45 @@ Iris.Connect(() => {
 		);
 
 		if (window.state.isOpened.get() && window.state.isUncollapsed.get()) {
-			Iris.Text(["Now see, that's kinda cool, don't ya think?"]);
+			const input = Iris.InputText([undefined, "Search"]);
+			const inputText = input.state.text.get().lower();
 
-			DataManager.getDataObjects().forEach((dataObject) => {
+			DataManager.getObjects().forEach((dataObject) => {
 				const holder = dataObject.getHolder();
+				const tags = dataObject.getTags();
 				const isInstance = typeIs(holder, "Instance");
-				const name = isInstance ? holder.Name : holder;
-				const objectTree = Iris.Tree([name]);
+				let name = isInstance ? holder.Name : tostring(holder);
 
-				if (objectTree.state.isUncollapsed.get()) {
-					// Iris.Text(["Name: " + name]);
-					Iris.Text(["Is Instance: " + isInstance]);
+				name += " [";
+				for (let i = 0; i < tags.size(); i++) {
+					name += tags[i];
+					if (tags.size() - i !== 1) {
+						name += ", ";
+					} else {
+						name += "]";
+					}
+				}
 
-					const storageTree = Iris.Tree(["Storage"]);
+				if (inputText.size() === 0 || String.includes(name.lower(), inputText)) {
+					const objectTree = Iris.Tree([name]);
 
-					if (storageTree.state.isUncollapsed.get()) {
-						dataObject.getStorage().forEach((value, key) => {
-							Iris.Text([key + ": " + value]);
-						});
+					if (objectTree.state.isUncollapsed.get()) {
+						// Iris.Text(["Name: " + name]);
+						Iris.Text(["Is Instance: " + isInstance]);
+
+						const storageTree = Iris.Tree(["Storage"]);
+
+						if (storageTree.state.isUncollapsed.get()) {
+							dataObject.getStorage().forEach((value, key) => {
+								Iris.Text([key + ": " + value]);
+							});
+						}
+
+						Iris.End();
 					}
 
 					Iris.End();
 				}
-
-				Iris.End();
 			});
 		}
 		Iris.End();

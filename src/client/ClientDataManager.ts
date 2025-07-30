@@ -1,8 +1,9 @@
+import { Array, ArrayUtilities, Object, ObjectUtilities } from "@rbxts/luau-polyfill";
 import { CollectionService, Workspace } from "@rbxts/services";
 import { DataManager, DataObject, Debug, Holdable, Keyable, Valuable } from "shared/DataManager";
 import { EditFunction, ReplicatedDataObjects, ReplicateEvent } from "shared/ReplicateManager";
 
-const AwaitingToSync: Map<string, { tags: Array<string>; storage: Map<Keyable, Valuable> }> = new Map();
+const AwaitingToSync: Map<string, { tags: ReadonlyArray<string>; storage: Map<Keyable, Valuable> }> = new Map();
 
 export namespace ClientDataManager {
 	export function Init(): undefined {}
@@ -69,14 +70,17 @@ ReplicateEvent.OnClientEvent.Connect((replicatedObjects: ReplicatedDataObjects) 
 		const proxy = replicatedObject.holderProxy;
 		if (replicatedObject.pendingGC) {
 			if (proxy.holder !== undefined) {
-				const object = DataManager.getDataObject(proxy.holder, proxy.tags);
+				const object = DataManager.get(proxy.holder, proxy.tags);
 				object?.destroy();
 			}
 		} else if (replicatedObject.storage !== undefined) {
 			if (proxy.holder === undefined && proxy.uuid !== undefined) {
 				AwaitingToSync.set(proxy.uuid, { tags: proxy.tags, storage: replicatedObject.storage });
 			} else {
-				const dataObject = ClientDataObject.getOrConstruct(proxy.holder, proxy.tags);
+				const dataObject = ClientDataObject.getOrConstruct(
+					proxy.holder,
+					ObjectUtilities.assign(proxy.tags, []),
+				);
 				dataObject.setIsForSyncing(true);
 
 				// if ("key" in replicatedObject) {
@@ -97,7 +101,7 @@ Workspace.DescendantAdded.Connect((descendant) => {
 	const toSync = AwaitingToSync.get(uuid);
 	if (toSync !== undefined) {
 		AwaitingToSync.delete(uuid);
-		const dataObject = ClientDataObject.getOrConstruct(descendant, toSync.tags);
+		const dataObject = ClientDataObject.getOrConstruct(descendant, ObjectUtilities.assign(toSync.tags, []));
 		dataObject.setIsForSyncing(true);
 		toSync.storage.forEach((value, key) => dataObject.setValue(key, value, true));
 	}

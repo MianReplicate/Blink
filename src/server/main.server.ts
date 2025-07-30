@@ -4,7 +4,7 @@ import { makeHello } from "shared/module";
 import { ServerDataObject } from "./ServerDataManager";
 
 Players.PlayerAdded.Connect((player) => {
-	const survivor = ServerDataObject.getOrConstruct<Instance>(player, ["Survivor"]);
+	const survivor = ServerDataObject.getOrConstruct<Instance>(player, ["Survivor", "Angel"]);
 	const playerData = ServerDataObject.getOrConstruct<Instance>(player, ["Player"]);
 
 	const predicate = (plr: Player) => plr.UserId === player.UserId;

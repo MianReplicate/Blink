@@ -1,7 +1,7 @@
 import { ReplicatedStorage } from "@rbxts/services";
 import { Holdable, Keyable, Valuable } from "./DataManager";
 
-export type HoldableProxy = { holder: Holdable; tags: Array<string>; uuid: string | undefined };
+export type HoldableProxy = { holder: Holdable; tags: ReadonlyArray<string>; uuid: string | undefined };
 
 export type ReplicatedDataObjects = Array<ReplicatedDataObject>;
 export type ReplicatedDataObject = {

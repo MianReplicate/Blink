@@ -1,4 +1,4 @@
-import Object from "@rbxts/object-utils";
+import { Object } from "@rbxts/luau-polyfill";
 import { HttpService, Players, Workspace } from "@rbxts/services";
 import { DataManager, DataObject, Debug, Holdable, Keyable, Valuable } from "shared/DataManager";
 import {
@@ -8,6 +8,7 @@ import {
 	ReplicatedDataObjects,
 	ReplicateToPlayer,
 } from "shared/ReplicateManager";
+import { TickManager } from "shared/TickManager";
 
 type PlayerAccessorPredicate = (player: Player) => boolean;
 type PlayerKeyPredicate = (player: Player) => PlayerKeyAccessibility;
@@ -52,7 +53,7 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 
 	public getInProxyForm(): HoldableProxy {
 		const holder = this.getHolder();
-		const tags = this.getTags();
+		const tags = this.tags;
 		const uuid = this.uuid;
 
 		return { holder, tags, uuid };
@@ -143,7 +144,7 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 	public static flushAll() {
 		const playerToDataObjects = new Map<Player, ReplicatedDataObjects>();
 
-		DataManager.getDataObjects().forEach((dataObject) => {
+		DataManager.getObjects().forEach((dataObject) => {
 			if (dataObject instanceof ServerDataObject) {
 				const playerStorageMap = dataObject.flush();
 				playerStorageMap?.forEach((storage, player) => {
@@ -191,7 +192,7 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 	public static syncAllForNewPlayer(player: Player) {
 		const objects = new Array<ReplicatedDataObject>();
 
-		DataManager.getDataObjects().forEach((dataObject, holder) => {
+		DataManager.getObjects().forEach((dataObject, holder) => {
 			if (dataObject instanceof ServerDataObject) {
 				const storage: Map<Keyable, Valuable> = new Map();
 
@@ -277,11 +278,11 @@ Workspace.DescendantAdded.Connect((instance) => GenerateIDForInstance(instance))
 
 Workspace.GetDescendants().forEach((instance) => GenerateIDForInstance(instance));
 
-DataManager.AddTickable("[Flush Data Objects]", (tickable) => ServerDataObject.flushAll());
+TickManager.addTickable("[Flush Data Objects]", (tickable) => ServerDataObject.flushAll());
 
 EditFunction.OnServerInvoke = function (player: Player, holderProxy: unknown, key: unknown, value: unknown) {
 	const holderCast = holderProxy as HoldableProxy;
-	const dataObject = DataManager.getDataObject(holderCast.holder, holderCast.tags);
+	const dataObject = DataManager.get(holderCast.holder, holderCast.tags);
 	if (dataObject !== undefined && dataObject instanceof ServerDataObject) {
 		return dataObject.tryToEditKey(player, key as Keyable, value as Valuable);
 	}
