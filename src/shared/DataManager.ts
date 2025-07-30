@@ -52,14 +52,14 @@ export namespace DataManager {
 	}
 
 	export function getObjects() {
-		return DataObjects;
+		return DataObjects as Array<NetworkedDataObject<Holdable>>;
 	}
 }
 
 /**
  * A way to assign values with keys to unknown object alongside adding replication, and listener capabilities for these values.
  */
-export class DataObject<T extends Holdable> {
+class DataObject<T extends Holdable> {
 	private holder: T;
 	protected storage: Map<Keyable, Valuable>;
 	private listeners: Map<string, Listener>;
@@ -230,3 +230,53 @@ export class DataObject<T extends Holdable> {
 		return this.storage;
 	}
 }
+
+export class NetworkedDataObject<T extends Holdable> extends DataObject<T> {
+	protected readonly uuid: string | undefined;
+
+	protected constructor(holder: T, tags: Array<string>) {
+		super(holder, tags);
+
+		if (typeIs(holder, "Instance")) {
+			this.uuid = holder.GetAttribute("uuid") as string;
+		}
+	}
+
+	public static getOrConstruct<T extends Holdable>(
+		holder: T,
+		tags: Array<string>,
+		createCallback = () => new NetworkedDataObject<T>(holder, tags),
+	): NetworkedDataObject<T> {
+		return super.getOrConstruct(holder, tags, createCallback) as NetworkedDataObject<T>;
+	}
+
+	public static waitFor<T extends Holdable>(
+		holder: T,
+		tags: Array<string>,
+		secondsToWait: number = math.huge,
+	): NetworkedDataObject<T> | undefined {
+		const dataObject = super.waitFor(holder, tags, secondsToWait);
+		if (dataObject === undefined) return undefined;
+		return dataObject as NetworkedDataObject<T>;
+	}
+
+	public getInProxyForm(): HoldableProxy {
+		const holder = this.getHolder();
+		const tags = this.tags;
+		const uuid = this.uuid;
+
+		return { holder, tags, uuid };
+	}
+}
+
+function GenerateIDForInstance(instance: Instance) {
+	if (instance.GetAttribute("uuid") === undefined) {
+		const uuid = HttpService.GenerateGUID();
+		instance.SetAttribute("uuid", uuid);
+		instance.AddTag(uuid);
+	}
+}
+
+Workspace.DescendantAdded.Connect((instance) => GenerateIDForInstance(instance));
+
+Workspace.GetDescendants().forEach((instance) => GenerateIDForInstance(instance));

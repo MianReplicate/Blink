@@ -1,5 +1,5 @@
 import { Players, Workspace } from "@rbxts/services";
-import { DataManager, DataObject, Valuable } from "shared/DataManager";
+import { DataManager, Valuable } from "shared/DataManager";
 import { makeHello } from "shared/module";
 import { ServerDataObject } from "./ServerDataManager";
 
@@ -14,7 +14,7 @@ Players.PlayerAdded.Connect((player) => {
 
 	survivor.setPlayerCriteriaForKeys(["health", "blinkMeter"], (plr) => {
 		if (predicate(plr)) {
-			return { canSeeKey: true, canSeeValue: true, canEditValue: false };
+			return { canSeeKey: true, canSeeValue: true, canEditValue: true };
 		}
 		return { canSeeKey: false, canSeeValue: false, canEditValue: false };
 	});

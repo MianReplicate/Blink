@@ -1,6 +1,6 @@
 import { Object } from "@rbxts/luau-polyfill";
 import { HttpService, Players, Workspace } from "@rbxts/services";
-import { DataManager, DataObject, Debug, Holdable, Keyable, Valuable } from "shared/DataManager";
+import { DataManager, Debug, Holdable, Keyable, NetworkedDataObject, Valuable } from "shared/DataManager";
 import {
 	EditFunction,
 	HoldableProxy,
@@ -14,23 +14,18 @@ type PlayerAccessorPredicate = (player: Player) => boolean;
 type PlayerKeyPredicate = (player: Player) => PlayerKeyAccessibility;
 type PlayerKeyAccessibility = { canSeeKey: boolean; canSeeValue: boolean; canEditValue: boolean };
 
-const PendingGCFlush = new Array<DataObject<Holdable>>();
+const PendingGCFlush = new Array<NetworkedDataObject<Holdable>>();
 
-export class ServerDataObject<T extends Holdable> extends DataObject<T> {
+export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T> {
 	private accessor: PlayerAccessorPredicate;
 	private keyAccessibilities: Map<Keyable, PlayerKeyPredicate>;
 	private dirtyKeys: Set<Keyable>;
-	private uuid: string | undefined;
 
 	protected constructor(holder: T, tags: Array<string>) {
 		super(holder, tags);
 		this.keyAccessibilities = new Map();
 		this.dirtyKeys = new Set();
 		this.accessor = () => false;
-
-		if (typeIs(holder, "Instance")) {
-			this.uuid = holder.GetAttribute("uuid") as string;
-		}
 	}
 
 	public static getOrConstruct<T extends Holdable>(
@@ -67,7 +62,6 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 
 	public override destroy(): void {
 		super.destroy();
-		this.uuid = undefined;
 		PendingGCFlush.push(this);
 	}
 
@@ -155,7 +149,7 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 					}
 
 					const holderProxy = dataObject.getInProxyForm();
-					dataObjects.push({ holderProxy, pendingGC: false, storage });
+					dataObjects.push({ holderProxy, pendingGC: false, dirtyKeys: storage });
 				});
 			}
 		});
@@ -163,7 +157,7 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 		PendingGCFlush.forEach((dataObject) => {
 			if (dataObject instanceof ServerDataObject) {
 				const holderProxy = dataObject.getInProxyForm();
-				const object: ReplicatedDataObject = { holderProxy, pendingGC: true, storage: undefined };
+				const object: ReplicatedDataObject = { holderProxy, pendingGC: true, dirtyKeys: undefined };
 
 				Players.GetPlayers().forEach((player) => {
 					let dataObjects = playerToDataObjects.get(player);
@@ -205,7 +199,11 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 					});
 
 					const holderProxy = dataObject.getInProxyForm();
-					const replicatedDataObject: ReplicatedDataObject = { holderProxy, pendingGC: false, storage };
+					const replicatedDataObject: ReplicatedDataObject = {
+						holderProxy,
+						pendingGC: false,
+						dirtyKeys: storage,
+					};
 					objects.push(replicatedDataObject);
 				}
 			}
@@ -260,23 +258,12 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 			this.setValue(key, value);
 			return true;
 		}
+		Debug(player, "tried to edit", key, "but was denied permission!");
 		return false;
 	}
 }
 
 Players.PlayerAdded.Connect((player) => ServerDataObject.syncAllForNewPlayer(player));
-
-function GenerateIDForInstance(instance: Instance) {
-	if (instance.GetAttribute("uuid") === undefined) {
-		const uuid = HttpService.GenerateGUID();
-		instance.SetAttribute("uuid", uuid);
-		instance.AddTag(uuid);
-	}
-}
-
-Workspace.DescendantAdded.Connect((instance) => GenerateIDForInstance(instance));
-
-Workspace.GetDescendants().forEach((instance) => GenerateIDForInstance(instance));
 
 TickManager.addTickable("[Flush Data Objects]", (tickable) => ServerDataObject.flushAll());
 

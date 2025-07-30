@@ -7,7 +7,7 @@ export type ReplicatedDataObjects = Array<ReplicatedDataObject>;
 export type ReplicatedDataObject = {
 	holderProxy: HoldableProxy;
 	pendingGC: boolean;
-	storage: Map<Keyable, Valuable> | undefined;
+	dirtyKeys: Map<Keyable, Valuable> | undefined;
 };
 
 export const ReplicateEvent =
@@ -22,4 +22,8 @@ EditFunction.Parent = ReplicatedStorage;
 
 export function ReplicateToPlayer(player: Player, toReplicate: ReplicatedDataObjects) {
 	ReplicateEvent.FireClient(player, toReplicate);
+}
+
+export function SendServerNewValue(holderProxy: HoldableProxy, key: Keyable, value: Valuable) {
+	return EditFunction.InvokeServer(holderProxy, key, value);
 }

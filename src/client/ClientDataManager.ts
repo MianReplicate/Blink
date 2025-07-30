@@ -1,7 +1,7 @@
 import { Array, ArrayUtilities, Object, ObjectUtilities } from "@rbxts/luau-polyfill";
 import { CollectionService, Workspace } from "@rbxts/services";
-import { DataManager, DataObject, Debug, Holdable, Keyable, Valuable } from "shared/DataManager";
-import { EditFunction, ReplicatedDataObjects, ReplicateEvent } from "shared/ReplicateManager";
+import { DataManager, Debug, Holdable, Keyable, NetworkedDataObject, Valuable } from "shared/DataManager";
+import { EditFunction, ReplicatedDataObjects, ReplicateEvent, SendServerNewValue } from "shared/ReplicateManager";
 
 const AwaitingToSync: Map<string, { tags: ReadonlyArray<string>; storage: Map<Keyable, Valuable> }> = new Map();
 
@@ -9,7 +9,7 @@ export namespace ClientDataManager {
 	export function Init(): undefined {}
 }
 
-export class ClientDataObject<T extends Holdable> extends DataObject<T> {
+export class ClientDataObject<T extends Holdable> extends NetworkedDataObject<T> {
 	private isASyncedObject: boolean = false;
 	public static deserializeAndConstruct() {}
 	public static getOrConstruct<T extends Holdable>(
@@ -40,7 +40,7 @@ export class ClientDataObject<T extends Holdable> extends DataObject<T> {
 			super.setValue(key, value);
 			return true;
 		} else {
-			return EditFunction.InvokeServer(this.getHolder(), key, value);
+			return SendServerNewValue(this.getInProxyForm(), key, value);
 		}
 	}
 	/**
@@ -73,9 +73,9 @@ ReplicateEvent.OnClientEvent.Connect((replicatedObjects: ReplicatedDataObjects) 
 				const object = DataManager.get(proxy.holder, proxy.tags);
 				object?.destroy();
 			}
-		} else if (replicatedObject.storage !== undefined) {
+		} else if (replicatedObject.dirtyKeys !== undefined) {
 			if (proxy.holder === undefined && proxy.uuid !== undefined) {
-				AwaitingToSync.set(proxy.uuid, { tags: proxy.tags, storage: replicatedObject.storage });
+				AwaitingToSync.set(proxy.uuid, { tags: proxy.tags, storage: replicatedObject.dirtyKeys });
 			} else {
 				const dataObject = ClientDataObject.getOrConstruct(
 					proxy.holder,
@@ -88,7 +88,7 @@ ReplicateEvent.OnClientEvent.Connect((replicatedObjects: ReplicatedDataObjects) 
 				// dataObject.setValue(replicatedObject.key, replicatedObject.value);
 				// } else {
 				// replicatedDataObject
-				replicatedObject.storage.forEach((value, key) => dataObject.setValue(key, value, true));
+				replicatedObject.dirtyKeys.forEach((value, key) => dataObject.setValue(key, value, true));
 				// }
 			}
 		}
