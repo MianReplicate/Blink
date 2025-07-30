@@ -3,7 +3,32 @@ import { DataObject, Valuable } from "shared/DataManager";
 import { makeHello } from "shared/module";
 import { ServerDataObject } from "./ServerDataManager";
 
-// const newData = ServerDataObject.construct<Instance>(Workspace.WaitForChild("Baseplate"));
+const newData = ServerDataObject.construct<Instance>(Workspace.WaitForChild("Baseplate"));
+// newData.setReplicateCriteriaForKey("health", ["default"]);
+
+newData.setValue("health", 100);
+
+class Survivor {
+	private data: ServerDataObject<Instance>;
+
+	constructor(player: Player) {
+		this.data = ServerDataObject.construct(player);
+
+		this.data.setReplicateCriteriaForKey("health", ["default"]);
+		this.data.addListener({
+			callback: (key, value, oldValue) => {
+				print(key, value, oldValue);
+			},
+		});
+		task.wait(3);
+		this.data.setValue("health", 100);
+		this.data.setValue("health", 50);
+		this.data.setValue("health", 25);
+	}
+}
+
+Players.PlayerAdded.Connect((player) => new Survivor(player));
+
 // newData.setReplicateCriteriaForKey("health", ["default"]);
 // task.wait(2);
 // newData.setValue("health", { health: 100, maxHealth: 100 });

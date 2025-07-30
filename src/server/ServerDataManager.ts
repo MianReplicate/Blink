@@ -104,10 +104,6 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 	 */
 	private flush(): Map<Player, Map<Keyable, Valuable>> | undefined {
 		if (this.isPendingGC() || this.dirtyKeys.isEmpty()) return undefined;
-		const holder = this.getHolder();
-		if (typeIs(holder, "Instance")) {
-			if (!holder.IsDescendantOf(Workspace)) return undefined; // no point if it's not a descendant of workspace
-		}
 
 		const playerStorageMap = new Map<Player, Map<Keyable, Valuable>>();
 		const players = Players.GetPlayers();

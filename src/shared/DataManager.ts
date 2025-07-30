@@ -1,11 +1,14 @@
 import Object from "@rbxts/object-utils";
-import { ReplicatedStorage, RunService, Workspace } from "@rbxts/services";
+import { HttpService, ReplicatedStorage, RunService, Workspace } from "@rbxts/services";
 
-type Listener = (key: Keyable, value: Valuable, oldValue: Valuable | undefined) => void;
+type Listener = {
+	key?: Keyable | undefined;
+	callback: (key: Keyable, value: Valuable, oldValue: Valuable | undefined) => void;
+};
 
 export type HoldableProxy = { holder: Holdable; uuid: string | undefined };
 export type Holdable = Instance | string;
-export type Keyable = string;
+export type Keyable = string | number;
 export type Valuable = Instance | string | number | boolean | Valuable[] | { [key: Keyable]: Valuable } | undefined;
 export type Tickable = (deltaTime: number) => void;
 
@@ -137,7 +140,24 @@ export class DataObject<T extends Holdable> {
 		const oldValue = this.storage.get(key);
 		this.storage.set(key, value);
 
-		this.listeners.forEach((listener) => listener(key, value, oldValue));
+		this.listeners.forEach((listener) => {
+			if (listener.key === undefined || listener.key === key) {
+				listener.callback(key, value, oldValue);
+			}
+		});
+	}
+
+	public addValue(value: Valuable) {
+		if (this.pendingGC) return;
+		this.setValue(this.storage.size(), value);
+	}
+
+	public findValue(value: Valuable): Keyable | undefined {
+		if (this.pendingGC) return;
+		const filteredValues = Object.entries(this.storage).filter((entry) => entry[1] === value);
+		if (!filteredValues.isEmpty()) return filteredValues[0][0] as Keyable;
+
+		return undefined;
 	}
 
 	/**
@@ -150,21 +170,17 @@ export class DataObject<T extends Holdable> {
 	}
 
 	/**
-	 * Add a new listener that is called whenever the specified key is altered
-	 * @param name The name to assign to the listener
+	 * Add a new listener that is called when the specified key is altered or when a value is set if there is no set key
 	 * @param listener A function that is called whenever values are set
+	 * @returns A callback to stop the listener
 	 */
-	public addListener(name: string, listener: Listener) {
-		if (this.pendingGC) return;
-		this.listeners.set(name, listener);
-	}
+	public addListener(listener: Listener) {
+		if (this.pendingGC) return () => {};
 
-	/**
-	 * Remove a listener
-	 * @param name The name of the listener to remove
-	 */
-	public removeListener(name: string) {
-		this.listeners.delete(name);
+		const uuid = HttpService.GenerateGUID();
+		this.listeners.set(uuid, listener);
+
+		return () => this.listeners.delete(uuid);
 	}
 
 	/**
