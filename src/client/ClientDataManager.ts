@@ -14,14 +14,20 @@ import {
 
 const AwaitingToSync: Map<string, Map<Keyable, Valuable>> = new Map();
 
+export namespace ClientDataManager {
+	export function Init(): undefined {}
+}
+
 export class ClientDataObject<T extends Holdable> extends DataObject<T> {
 	private isASyncedObject: boolean = false;
 
-	public static construct<T extends Holdable>(holder: T): ClientDataObject<T> {
+	public static construct<T extends Holdable>(holder: T, forSync?: boolean): ClientDataObject<T> {
 		if (ActiveDataObjects.has(holder)) {
 			return ActiveDataObjects.get(holder) as ClientDataObject<T>;
 		}
-		return new ClientDataObject<T>(holder);
+		const object = new ClientDataObject<T>(holder);
+		object.setIsForSyncing(forSync !== undefined ? forSync : false);
+		return object;
 	}
 
 	public static waitFor<T extends Holdable>(holder: T, secondsToWait: number): ClientDataObject<T> | undefined {
@@ -84,7 +90,7 @@ ReplicateEvent.OnClientEvent.Connect((replicatedObjects: ReplicatedDataObjects) 
 			if (proxy.holder === undefined && proxy.uuid !== undefined) {
 				AwaitingToSync.set(proxy.uuid, replicatedObject.storage);
 			} else {
-				const dataObject = ClientDataObject.construct(proxy.holder);
+				const dataObject = ClientDataObject.construct(proxy.holder, true);
 
 				// if ("key" in replicatedObject) {
 				// replicatedKey
@@ -104,8 +110,7 @@ Workspace.DescendantAdded.Connect((descendant) => {
 	const storageToSync = AwaitingToSync.get(uuid);
 	if (storageToSync !== undefined) {
 		AwaitingToSync.delete(uuid);
-		const dataObject = ClientDataObject.construct(descendant);
-		dataObject.setIsForSyncing(true);
+		const dataObject = ClientDataObject.construct(descendant, true);
 		storageToSync.forEach((value, key) => dataObject.setValue(key, value, true));
 	}
 });

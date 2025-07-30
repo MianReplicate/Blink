@@ -4,7 +4,10 @@ import { makeHello } from "shared/module";
 import { ServerDataObject } from "./ServerDataManager";
 
 const newData = ServerDataObject.construct<Instance>(Workspace.WaitForChild("Baseplate"));
-// newData.setReplicateCriteriaForKey("health", ["default"]);
+newData.setCriteriaForDataObject(() => true);
+newData.setPlayerCriteriaForKey("health", (player) => {
+	return { canSeeKey: false, canSeeValue: true, canEditValue: true };
+});
 
 newData.setValue("health", 100);
 
@@ -14,16 +17,13 @@ class Survivor {
 	constructor(player: Player) {
 		this.data = ServerDataObject.construct(player);
 
-		this.data.setReplicateCriteriaForKey("health", ["default"]);
+		// this.data.setReplicateCriteriaForKey("health", ["default"]);
 		this.data.addListener({
 			callback: (key, value, oldValue) => {
 				print(key, value, oldValue);
 			},
 		});
-		task.wait(3);
 		this.data.setValue("health", 100);
-		this.data.setValue("health", 50);
-		this.data.setValue("health", 25);
 	}
 }
 

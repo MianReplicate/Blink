@@ -15,21 +15,23 @@ import {
 	Valuable,
 } from "shared/DataManager";
 
-type OwnerCriterias = Array<Player | string>;
+type PlayerAccessorPredicate = (player: Player) => boolean;
+type PlayerKeyPredicate = (player: Player) => PlayerKeyAccessibility;
+type PlayerKeyAccessibility = { canSeeKey: boolean; canSeeValue: boolean; canEditValue: boolean };
 
 const PendingGCFlush = new Array<DataObject<Holdable>>();
 
 export class ServerDataObject<T extends Holdable> extends DataObject<T> {
-	private keyReplicators: Map<Keyable, OwnerCriterias>;
-	private keyEditors: Map<Keyable, OwnerCriterias>;
+	private accessor: PlayerAccessorPredicate;
+	private keyAccessibilities: Map<Keyable, PlayerKeyPredicate>;
 	private dirtyKeys: Set<Keyable>;
 	private uuid: string | undefined;
 
 	protected constructor(holder: T) {
 		super(holder);
-		this.keyReplicators = new Map();
-		this.keyEditors = new Map();
+		this.keyAccessibilities = new Map();
 		this.dirtyKeys = new Set();
+		this.accessor = () => false;
 
 		if (typeIs(holder, "Instance")) {
 			this.uuid = holder.GetAttribute("uuid") as string;
@@ -52,8 +54,7 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 	public override setValue(key: Keyable, value: Valuable): void {
 		if (this.isPendingGC()) return;
 		super.setValue(key, value);
-		if (this.keyReplicators.has(key)) this.dirtyKeys.add(key);
-		// this.replicateToAll(key);
+		if (this.keyAccessibilities.has(key)) this.dirtyKeys.add(key);
 	}
 
 	public override destroy(): void {
@@ -62,45 +63,33 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 		PendingGCFlush.push(this);
 	}
 
-	// private replicateToAll(key: Keyable) {
-	// 	if (this.isPendingGC()) return;
-	// 	this.keyReplicators.get(key)?.forEach((use) => {
-	// 		if (typeIs(use, "string")) {
-	// 			print("Tag value!!: " + use);
-
-	// 			Players.GetPlayers().forEach((player) => this.replicate(key, player));
-	// 		} else {
-	// 			print("is player we're replicating to: " + use.DisplayName);
-	// 			this.replicate(key, use);
-	// 		}
-	// 	});
-	// }
-
-	// private replicate(key: Keyable, player: Player) {
-	// 	if (this.isPendingGC()) return;
-	// 	const value = this.getValue(key);
-	// 	const holder = this.getHolder();
-	// 	ReplicateToPlayer(player, { holder, key, value });
-	// }
-
-	private static IsAOwner(player: Player, ownerCriterias: OwnerCriterias): boolean {
-		return (
-			ownerCriterias !== undefined &&
-			!ownerCriterias
-				?.filter(
-					(replicator) =>
-						replicator === player || (typeIs(replicator, "string") && player.HasTag(replicator)),
-				)
-				.isEmpty()
-		);
+	private static GetPlayerKeyAccessibility(player: Player, callback: PlayerKeyPredicate): PlayerKeyAccessibility {
+		return callback !== undefined
+			? callback(player)
+			: { canSeeKey: false, canSeeValue: false, canEditValue: false };
 	}
 
-	private static GetOwnersFor(players: Array<Player>, ownerCriterias: OwnerCriterias): Array<Player> {
-		return players.filter((player) => ServerDataObject.IsAOwner(player, ownerCriterias));
+	private static GetPlayerKeyAccessibilities(
+		players: Array<Player>,
+		callback: PlayerKeyPredicate,
+	): Map<Player, PlayerKeyAccessibility> {
+		const map = new Map<Player, PlayerKeyAccessibility>();
+
+		players.forEach((player) => map.set(player, ServerDataObject.GetPlayerKeyAccessibility(player, callback)));
+
+		return map;
+	}
+
+	private static GetPlayerAccessibility(player: Player, callback: PlayerAccessorPredicate) {
+		return callback !== undefined ? callback(player) : false;
+	}
+
+	private static GetPlayerAccessibilities(players: Array<Player>, callback: PlayerAccessorPredicate) {
+		return players.filter((player) => callback(player));
 	}
 
 	/**
-	 * Flushes all dirty keys and replicates them to all valid players. This should not be run manually as it should already be handled in the central loop.
+	 * Flushes all dirty keys and replicates them to all valid players.
 	 */
 	private flush(): Map<Player, Map<Keyable, Valuable>> | undefined {
 		if (this.isPendingGC() || this.dirtyKeys.isEmpty()) return undefined;
@@ -109,19 +98,27 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 		const players = Players.GetPlayers();
 
 		this.dirtyKeys.forEach((key) => {
-			const criterias = this.keyReplicators.get(key) as OwnerCriterias;
-			const matchingPlayers = ServerDataObject.GetOwnersFor(players, criterias);
+			const criterias = this.keyAccessibilities.get(key) as PlayerKeyPredicate;
+			const accessorPlayers = ServerDataObject.GetPlayerAccessibilities(players, this.accessor);
+			const matchingPlayers = Object.entries(
+				ServerDataObject.GetPlayerKeyAccessibilities(players, criterias),
+			).filter((entry) => accessorPlayers.includes(entry[0]));
 
 			let value = this.getValue(key);
 			if (typeIs(value, "Instance")) value = value.GetAttribute("uuid") as string;
 
-			matchingPlayers.forEach((player) => {
-				let storage = playerStorageMap.get(player);
-				if (!storage) {
-					storage = new Map();
-					playerStorageMap.set(player, storage);
+			matchingPlayers.forEach((entry) => {
+				const player = entry[0];
+				const accessibility = entry[1];
+
+				if (accessibility.canSeeKey) {
+					let storage = playerStorageMap.get(player);
+					if (!storage) {
+						storage = new Map();
+						playerStorageMap.set(player, storage);
+					}
+					storage.set(key, accessibility.canSeeValue ? value : "unreplicated");
 				}
-				storage.set(key, value);
 			});
 		});
 
@@ -134,6 +131,9 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 		return playerStorageMap;
 	}
 
+	/**
+	 * Flushes all active data objects and syncs them to all players. This should be run once in the main central loop.
+	 */
 	public static flushAll() {
 		const playerToDataObjects = new Map<Player, ReplicatedDataObjects>();
 
@@ -193,20 +193,19 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 			if (dataObject instanceof ServerDataObject) {
 				const storage: Map<Keyable, Valuable> = new Map();
 
-				dataObject.keyReplicators.forEach((replicatables, key) => {
-					if (
-						!replicatables
-							.filter((value) => value === player || (typeIs(value, "string") && player.HasTag(value)))
-							.isEmpty()
-					) {
-						storage.set(key, dataObject.getValue(key));
-					}
-				});
+				if (this.GetPlayerAccessibility(player, dataObject.accessor)) {
+					dataObject.keyAccessibilities.forEach((predicate, key) => {
+						const accessibility = this.GetPlayerKeyAccessibility(player, predicate);
+						if (accessibility.canSeeKey) {
+							storage.set(key, accessibility.canSeeValue ? dataObject.getValue(key) : "unreplicated");
+						}
+					});
 
-				const uuid = dataObject.uuid;
-				const holderProxy: HoldableProxy = { holder, uuid };
-				const replicatedDataObject: ReplicatedDataObject = { holderProxy, pendingGC: false, storage };
-				objects.push(replicatedDataObject);
+					const uuid = dataObject.uuid;
+					const holderProxy: HoldableProxy = { holder, uuid };
+					const replicatedDataObject: ReplicatedDataObject = { holderProxy, pendingGC: false, storage };
+					objects.push(replicatedDataObject);
+				}
 			}
 		});
 
@@ -216,44 +215,34 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 	}
 
 	/**
-	 * The criteria needed for a player to pass for a key to replicate to
-	 * @param key The key to replicate
-	 * @param owners The owners for this key
+	 * Sets an accessor predicate for the data object
+	 * @param predicate Tests for whether the player can see the data object
 	 */
-	public setReplicateCriteriaForKey(key: Keyable, owners: OwnerCriterias) {
+	public setCriteriaForDataObject(predicate: PlayerAccessorPredicate) {
 		if (this.isPendingGC()) return;
-		this.keyReplicators.set(key, owners);
+
+		this.accessor = predicate;
+	}
+
+	/**
+	 * Set a key predicate for the specified key
+	 * @param keys Keys to replicate
+	 * @param predicate Tests for whether a player can see a key, see its value, and edit the value
+	 */
+	public setPlayerCriteriaForKey(key: Keyable, predicate: PlayerKeyPredicate) {
+		if (this.isPendingGC()) return;
+		this.keyAccessibilities.set(key, predicate);
 		this.dirtyKeys.add(key);
 	}
 
 	/**
-	 * The criteria needed for a player to pass for the specified keys to replicate to
+	 * Set a key predicate for the specified keys
 	 * @param keys Keys to replicate
-	 * @param owners The owners for this key
+	 * @param predicate Tests for whether a player can see a key, see its value, and edit the value
 	 */
-	public setReplicateCriteriaForKeys(keys: Array<Keyable>, owners: OwnerCriterias) {
+	public setPlayerCriteriaForKeys(keys: Array<Keyable>, predicate: PlayerKeyPredicate) {
 		if (this.isPendingGC()) return;
-		keys.forEach((key) => this.setReplicateCriteriaForKey(key, owners));
-	}
-
-	/**
-	 * The criteria needed for a player to pass for a key to be editable
-	 * @param key The key to edit
-	 * @param owners The owners for this key
-	 */
-	public setEditorCriteriaForKey(key: Keyable, owners: OwnerCriterias) {
-		if (this.isPendingGC()) return;
-		this.keyEditors.set(key, owners);
-	}
-
-	/**
-	 * The criteria needed for a player to pass for the specified keys to be editable
-	 * @param keys Keys to edit
-	 * @param owners The owners for this key
-	 */
-	public setEditorCriteriaForKeys(keys: Array<Keyable>, owners: OwnerCriterias) {
-		if (this.isPendingGC()) return;
-		keys.forEach((key) => this.setEditorCriteriaForKey(key, owners));
+		keys.forEach((key) => this.setPlayerCriteriaForKey(key, predicate));
 	}
 
 	/**
@@ -264,8 +253,8 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 	 * @returns Whether it was successful
 	 */
 	public tryToEditKey(player: Player, key: Keyable, value: Valuable): boolean {
-		const criterias = this.keyEditors.get(key);
-		if (criterias !== undefined && ServerDataObject.IsAOwner(player, criterias)) {
+		const predicate = this.keyAccessibilities.get(key);
+		if (predicate !== undefined && ServerDataObject.GetPlayerKeyAccessibility(player, predicate).canEditValue) {
 			this.setValue(key, value);
 			return true;
 		}
@@ -273,10 +262,7 @@ export class ServerDataObject<T extends Holdable> extends DataObject<T> {
 	}
 }
 
-Players.PlayerAdded.Connect((player) => {
-	player.AddTag("default");
-	ServerDataObject.syncAllForNewPlayer(player);
-});
+Players.PlayerAdded.Connect((player) => ServerDataObject.syncAllForNewPlayer(player));
 
 function GenerateIDForInstance(instance: Instance) {
 	if (instance.GetAttribute("uuid") === undefined) {

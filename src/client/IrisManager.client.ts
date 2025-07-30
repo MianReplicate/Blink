@@ -2,9 +2,9 @@ import Iris from "@rbxts/iris";
 import { WindowArguments } from "@rbxts/iris/src/lib/widgets/window";
 import { ActiveDataObjects, DataObject } from "shared/DataManager";
 import { Players, UserInputService } from "@rbxts/services";
-import { ClientDataObject } from "./ClientDataManager";
+import { ClientDataManager, ClientDataObject } from "./ClientDataManager";
 
-print(ClientDataObject);
+ClientDataManager.Init();
 
 let isVisible = false;
 let wasLockedInFirstPerson = false;

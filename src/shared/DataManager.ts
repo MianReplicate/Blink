@@ -175,7 +175,7 @@ export class DataObject<T extends Holdable> {
 	 * @returns A callback to stop the listener
 	 */
 	public addListener(listener: Listener) {
-		if (this.pendingGC) return () => {};
+		if (this.pendingGC) return;
 
 		const uuid = HttpService.GenerateGUID();
 		this.listeners.set(uuid, listener);
