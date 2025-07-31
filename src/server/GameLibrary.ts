@@ -18,7 +18,7 @@ export namespace GameLibrary {
 		return DataManager.getTagged(["Angel"]);
 	}
 
-	export function createOrGetSurvivor(character: Model | Instance, player?: Player): Survivor {
+	export function createOrGetSurvivor(character: Model, player?: Player): Survivor {
 		let survivor = survivorList.getValue<Survivor>(character);
 		if (survivor !== undefined) return survivor;
 

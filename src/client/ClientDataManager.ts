@@ -1,7 +1,13 @@
 import { Array, ArrayUtilities, Object, ObjectUtilities } from "@rbxts/luau-polyfill";
 import { CollectionService, Workspace } from "@rbxts/services";
 import { DataManager, Debug, Holdable, Keyable, NetworkedDataObject, Valuable } from "shared/DataManager";
-import { EditFunction, ReplicatedDataObjects, ReplicateEvent, SendServerNewValue } from "shared/ReplicateManager";
+import {
+	EditFunction,
+	ReplicatedDataObjects,
+	ReplicateEvent,
+	SendServerNewValue,
+	UnreliableReplicateEvent,
+} from "shared/ReplicateManager";
 
 const AwaitingToSync: Map<string, { tags: ReadonlyArray<string>; storage: Map<Keyable, Valuable> }> = new Map();
 
@@ -63,7 +69,7 @@ export class ClientDataObject<T extends Holdable> extends NetworkedDataObject<T>
 	}
 }
 
-ReplicateEvent.OnClientEvent.Connect((replicatedObjects: ReplicatedDataObjects) => {
+const replicateCallback = (replicatedObjects: ReplicatedDataObjects) => {
 	Debug("Received", replicatedObjects);
 
 	replicatedObjects.forEach((replicatedObject) => {
@@ -82,18 +88,14 @@ ReplicateEvent.OnClientEvent.Connect((replicatedObjects: ReplicatedDataObjects) 
 					ObjectUtilities.assign(proxy.tags, []),
 				);
 				dataObject.setIsForSyncing(true);
-
-				// if ("key" in replicatedObject) {
-				// replicatedKey
-				// dataObject.setValue(replicatedObject.key, replicatedObject.value);
-				// } else {
-				// replicatedDataObject
 				replicatedObject.dirtyKeys.forEach((value, key) => dataObject.setValue(key, value, true));
-				// }
 			}
 		}
 	});
-});
+};
+
+ReplicateEvent.OnClientEvent.Connect(replicateCallback);
+UnreliableReplicateEvent.OnClientEvent.Connect(replicateCallback);
 
 Workspace.DescendantAdded.Connect((descendant) => {
 	const uuid = descendant.GetAttribute("uuid") as string;

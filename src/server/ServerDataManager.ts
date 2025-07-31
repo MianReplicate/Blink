@@ -7,23 +7,26 @@ import {
 	ReplicatedDataObject,
 	ReplicatedDataObjects,
 	ReplicateToPlayer,
+	ReplicateType,
 } from "shared/ReplicateManager";
 import { TickManager } from "shared/TickManager";
 
-type PlayerAccessorPredicate = (player: Player) => boolean;
-type PlayerKeyPredicate = (player: Player) => PlayerKeyAccessibility;
+export type PlayerAccessorPredicate = (player: Player) => boolean;
+export type PlayerKeyPredicate = (player: Player) => PlayerKeyAccessibility;
 type PlayerKeyAccessibility = { canSeeKey: boolean; canSeeValue: boolean; canEditValue: boolean };
 
 const PendingGCFlush = new Array<NetworkedDataObject<Holdable>>();
 
 export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T> {
 	private accessor: PlayerAccessorPredicate;
+	private keyReplicateTypes: Map<Keyable, ReplicateType>;
 	private keyAccessibilities: Map<Keyable, PlayerKeyPredicate>;
 	private dirtyKeys: Set<Keyable>;
 
 	protected constructor(holder: T, tags: Array<string>) {
 		super(holder, tags);
 		this.keyAccessibilities = new Map();
+		this.keyReplicateTypes = new Map();
 		this.dirtyKeys = new Set();
 		this.accessor = () => false;
 	}
@@ -93,10 +96,12 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 	/**
 	 * Flushes all dirty keys and replicates them to all valid players.
 	 */
-	private flush(): Map<Player, Map<Keyable, Valuable>> | undefined {
+	private flush() {
 		if (this.isPendingGC() || this.dirtyKeys.isEmpty()) return undefined;
 
-		const playerStorageMap = new Map<Player, Map<Keyable, Valuable>>();
+		const reliablePlayerStorageMap = new Map<Player, Map<Keyable, Valuable>>();
+		const unreliablePlayerStorageMap = new Map<Player, Map<Keyable, Valuable>>();
+
 		const players = Players.GetPlayers();
 
 		this.dirtyKeys.forEach((key) => {
@@ -116,13 +121,21 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 				const accessibility = entry[1];
 
 				if (accessibility.canSeeKey) {
-					let storage = playerStorageMap.get(player);
+					const replicateType = this.keyReplicateTypes.get(key) || ReplicateType.Unreliable;
+					const storageMap =
+						replicateType === ReplicateType.Reliable
+							? reliablePlayerStorageMap
+							: unreliablePlayerStorageMap;
+
+					let storage = storageMap.get(player);
 					if (!storage) {
 						storage = new Map();
-						playerStorageMap.set(player, storage);
+						storageMap.set(player, storage);
 					}
 
-					const replicatable = value !== undefined && (value as Replicatable).replicatable;
+					const replicatable =
+						value !== undefined &&
+						(!typeIs(value, "table") || (typeIs(value, "table") && (value as Replicatable).replicatable));
 					storage.set(toUse, accessibility.canSeeValue && replicatable ? value : "unreplicated");
 				}
 			});
@@ -130,28 +143,42 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 
 		this.dirtyKeys.clear();
 
-		return playerStorageMap;
+		return { reliable: reliablePlayerStorageMap, unreliable: unreliablePlayerStorageMap };
 	}
 
 	/**
 	 * Flushes all active data objects and syncs them to all players. This should be run once in the main central loop.
 	 */
 	public static flushAll() {
-		const playerToDataObjects = new Map<Player, ReplicatedDataObjects>();
+		const reliablePlayerToDataObjects = new Map<Player, ReplicatedDataObjects>();
+		const unreliablePlayerToDataObjects = new Map<Player, ReplicatedDataObjects>();
 
 		DataManager.getObjects().forEach((dataObject) => {
 			if (dataObject instanceof ServerDataObject) {
-				const playerStorageMap = dataObject.flush();
-				playerStorageMap?.forEach((storage, player) => {
-					let dataObjects = playerToDataObjects.get(player);
-					if (dataObjects === undefined) {
-						dataObjects = new Array();
-						playerToDataObjects.set(player, dataObjects);
-					}
+				const playerMaps = dataObject.flush();
+				if (playerMaps !== undefined) {
+					playerMaps.reliable.forEach((storage, player) => {
+						let dataObjects = reliablePlayerToDataObjects.get(player);
+						if (dataObjects === undefined) {
+							dataObjects = new Array();
+							reliablePlayerToDataObjects.set(player, dataObjects);
+						}
 
-					const holderProxy = dataObject.getInProxyForm();
-					dataObjects.push({ holderProxy, pendingGC: false, dirtyKeys: storage });
-				});
+						const holderProxy = dataObject.getInProxyForm();
+						dataObjects.push({ holderProxy, pendingGC: false, dirtyKeys: storage });
+					});
+
+					playerMaps.unreliable.forEach((storage, player) => {
+						let dataObjects = unreliablePlayerToDataObjects.get(player);
+						if (dataObjects === undefined) {
+							dataObjects = new Array();
+							unreliablePlayerToDataObjects.set(player, dataObjects);
+						}
+
+						const holderProxy = dataObject.getInProxyForm();
+						dataObjects.push({ holderProxy, pendingGC: false, dirtyKeys: storage });
+					});
+				}
 			}
 		});
 
@@ -161,10 +188,10 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 				const object: ReplicatedDataObject = { holderProxy, pendingGC: true, dirtyKeys: undefined };
 
 				Players.GetPlayers().forEach((player) => {
-					let dataObjects = playerToDataObjects.get(player);
+					let dataObjects = reliablePlayerToDataObjects.get(player);
 					if (dataObjects === undefined) {
 						dataObjects = new Array();
-						playerToDataObjects.set(player, dataObjects);
+						reliablePlayerToDataObjects.set(player, dataObjects);
 					}
 					dataObjects.push(object);
 				});
@@ -172,10 +199,20 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 		});
 		PendingGCFlush.clear();
 
-		if (playerToDataObjects.size() > 0) {
-			Debug("Flushing", playerToDataObjects);
+		if (reliablePlayerToDataObjects.size() > 0) {
+			Debug("Flushing Reliable", reliablePlayerToDataObjects);
 
-			playerToDataObjects.forEach((objects, player) => ReplicateToPlayer(player, objects));
+			reliablePlayerToDataObjects.forEach((objects, player) =>
+				ReplicateToPlayer(player, objects, ReplicateType.Reliable),
+			);
+		}
+
+		if (unreliablePlayerToDataObjects.size() > 0) {
+			Debug("Flushing Unreliable", unreliablePlayerToDataObjects);
+
+			unreliablePlayerToDataObjects.forEach((objects, player) =>
+				ReplicateToPlayer(player, objects, ReplicateType.Unreliable),
+			);
 		}
 	}
 
@@ -196,7 +233,10 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 						const accessibility = this.GetPlayerKeyAccessibility(player, predicate);
 						if (accessibility.canSeeKey) {
 							const value = dataObject.getValue<Valuable>(key);
-							const replicatable = value !== undefined && (value as Replicatable).replicatable;
+							const replicatable =
+								value !== undefined &&
+								(!typeIs(value, "table") ||
+									(typeIs(value, "table") && (value as Replicatable).replicatable));
 							storage.set(key, accessibility.canSeeValue && replicatable ? value : "unreplicated");
 						}
 					});
@@ -212,9 +252,13 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 			}
 		});
 
-		ReplicateToPlayer(player, objects);
+		ReplicateToPlayer(player, objects, ReplicateType.Reliable);
 
 		Debug("Syncing", objects, "to", player);
+	}
+
+	public setKeyReliability(key: Keyable, replicateType: ReplicateType) {
+		this.keyReplicateTypes.set(key, replicateType);
 	}
 
 	/**
@@ -242,9 +286,6 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 	 */
 	public setPlayerCriteriaForKey(key: Keyable, predicate: PlayerKeyPredicate) {
 		if (this.isPendingGC()) return;
-		if (!this.storage.has(key)) {
-			return;
-		}
 		this.keyAccessibilities.set(key, predicate);
 		this.dirtyKeys.add(key);
 	}

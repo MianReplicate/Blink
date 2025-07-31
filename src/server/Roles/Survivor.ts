@@ -1,11 +1,39 @@
-import { TweenService } from "@rbxts/services";
-import { ServerDataObject } from "../ServerDataManager";
+import { ReplicatedStorage, TweenService } from "@rbxts/services";
+import { PlayerKeyPredicate, ServerDataObject } from "../ServerDataManager";
 import { Actor } from "./Actor";
 
 export class Survivor extends Actor {
-	constructor(character: Instance) {
+	constructor(character: Instance, player?: Player) {
 		super(ServerDataObject.getOrConstruct<Instance>(character, ["Survivor"]));
-		// this.data.setValue("classHolder", this);
+
+		const humanoid = character.WaitForChild("Humanoid") as Humanoid;
+		let animator = humanoid.FindFirstChild("Animator") as Animator;
+		if (animator === undefined) {
+			animator = new Instance("Animator");
+			animator.Parent = humanoid;
+		}
+
+		humanoid.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff;
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None;
+		humanoid.UseJumpPower = true;
+		humanoid.JumpPower = 0;
+		humanoid.BreakJointsOnDeath = false;
+
+		this.data.setValue("blinking", false);
+		this.data.setValue("blinkTrack", animator.LoadAnimation(ReplicatedStorage.SurvivorAnimations.Blink.Clone()));
+
+		if (player !== undefined) {
+			this.data.setValue("player", player);
+
+			const predicate: PlayerKeyPredicate = (_player: Player) => {
+				return { canSeeKey: _player.UserId === player.UserId, canSeeValue: true, canEditValue: false };
+			};
+
+			this.data.setPlayerCriteriaForKeys(["blinking", "blinkMeter", "dead", "maxBlinkMeter"], predicate);
+			this.data.setCriteriaForDataObject((_player) => _player.UserId === player.UserId);
+		}
+
+		character.Archivable = true;
 	}
 
 	public blink() {
