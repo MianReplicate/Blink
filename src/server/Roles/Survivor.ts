@@ -2,8 +2,25 @@ import { ReplicatedStorage, TweenService } from "@rbxts/services";
 import { PlayerKeyPredicate, ServerDataObject } from "../ServerDataManager";
 import { Actor } from "./Actor";
 
+export const SurvivorList = ServerDataObject.getOrConstruct<string>("List", ["Survivor"]);
+
+SurvivorList.setCriteriaForDataObject((plr) => true);
+SurvivorList.setFutureCriteriaForKeys((plr) => {
+	return { canSeeKey: true, canSeeValue: false, canEditValue: false };
+});
+
 export class Survivor extends Actor {
-	constructor(character: Instance, player?: Player) {
+	public static getOrCreate(character: Model, player?: Player): Survivor {
+		let survivor = SurvivorList.getValue<Survivor>(character);
+		if (survivor !== undefined) return survivor;
+
+		survivor = new Survivor(character);
+		SurvivorList.setValue(character, survivor);
+
+		return survivor;
+	}
+
+	private constructor(character: Instance, player?: Player) {
 		super(ServerDataObject.getOrConstruct<Instance>(character, ["Survivor"]));
 
 		const humanoid = character.WaitForChild("Humanoid") as Humanoid;
@@ -34,12 +51,35 @@ export class Survivor extends Actor {
 		}
 
 		character.Archivable = true;
+
+		this.defaultValues();
+	}
+
+	public defaultValues() {
+		this.data.setValue("maxBlinkMeter", 100);
+		this.data.setValue("blinkMeter", this.data.getValue("maxBlinkMeter"));
+		this.data.setValue("blinkResetTimer", 0.3);
+
+		this.data.setValue("drainAmount", 10);
+
+		this.data.setValue("straining", undefined);
+		this.data.setValue("strainTime", 1);
+		this.data.setValue("minStrainTime", 0.2);
+
+		this.data.setValue("strainIncrease", 15);
+		this.data.setValue("minStrainIncrease", 0);
 	}
 
 	public blink() {
 		if (!this.isAlive()) return;
 
 		if (this.data.getValue<boolean>("blinking")) return;
+
+		this.queueStraining(false);
+		this.data.setValue("strainTime", this.data.getValue<number>("blinkResetTimer") / 2);
+		this.setBlinkMeter(0);
+		this.defaultValues();
+		this.data.setValue("blinking", os.clock());
 	}
 
 	public queueStraining(start: boolean) {
@@ -66,9 +106,67 @@ export class Survivor extends Actor {
 		tweenToPosition.Play();
 	}
 
+	public strain() {
+		if (!this.isAlive()) return;
+
+		const blinkMeter = this.data.getValue<number>("blinkMeter");
+		const strainIncrease = this.data.getValue<number>("strainIncrease");
+		if (
+			blinkMeter < this.data.getValue<number>("maxBlinkMeter") &&
+			strainIncrease > 0 &&
+			!this.data.getValue<boolean>("blinking")
+		) {
+			this.setBlinkMeter(blinkMeter + strainIncrease);
+			this.data.setValue(
+				"strainIncrease",
+				math.max(strainIncrease - 0.6, this.data.getValue<number>("minStrainIncrease")),
+			);
+			this.data.setValue(
+				"strainTime",
+				math.max(this.data.getValue<number>("strainTime") - 0.04, this.data.getValue<number>("minStrainTime")),
+			);
+		}
+	}
+
 	public isAlive() {
 		return !this.data.getValue<boolean>("dead");
 	}
 
 	public die() {}
+
+	public destroy() {
+		SurvivorList.removeKey(this.getData().getHolder());
+		this.getData().destroy();
+	}
+
+	public tick() {
+		super.tick();
+
+		const strainValue = this.data.getValue<number>("straining");
+		if (strainValue !== undefined) {
+			const deltaTime = os.clock() - strainValue;
+			if (deltaTime > this.data.getValue<number>("strainTime")) {
+				const newBlinkMeter = math.max(
+					this.data.getValue<number>("blinkMeter") - this.data.getValue<number>("drainAmount"),
+					0,
+				);
+				this.setBlinkMeter(newBlinkMeter);
+
+				if (this.data.getValue<number>("blinkMeter") <= 0) {
+					this.data.setValue("straining", undefined);
+					this.blink();
+				} else {
+					this.data.setValue("straining", os.clock());
+				}
+			}
+		} else {
+			// currently blinking
+			const deltaTime = os.clock() - this.data.getValue<number>("blinking");
+			if (deltaTime >= this.data.getValue<number>("blinkResetTimer")) {
+				this.data.setValue("blinking", undefined);
+				this.setBlinkMeter(this.data.getValue("blinkMeter"));
+				this.queueStraining(true);
+			}
+		}
+	}
 }

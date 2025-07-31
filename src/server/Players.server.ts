@@ -1,6 +1,6 @@
 import { Players, ReplicatedStorage } from "@rbxts/services";
 import { Util } from "shared/Util";
-import { GameLibrary } from "./GameLibrary";
+import { GameHelper } from "./GameLibrary";
 
 type Command = (player: Player, args: string[]) => unknown;
 
