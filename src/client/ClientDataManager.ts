@@ -11,7 +11,7 @@ export namespace ClientDataManager {
 
 export class ClientDataObject<T extends Holdable> extends NetworkedDataObject<T> {
 	private isASyncedObject: boolean = false;
-	public static deserializeAndConstruct() {}
+
 	public static getOrConstruct<T extends Holdable>(
 		holder: T,
 		tags: Array<string>,

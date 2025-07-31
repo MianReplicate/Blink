@@ -12,7 +12,19 @@ type Listener = {
 
 export type Holdable = Instance | string;
 export type Keyable = Holdable | number;
-export type Valuable = Instance | string | number | boolean | Valuable[] | Map<Keyable, Valuable> | undefined;
+export type Valuable =
+	| Instance
+	| string
+	| number
+	| boolean
+	| Valuable[]
+	| Map<Keyable, Valuable>
+	| Replicatable
+	| undefined;
+
+export interface Replicatable {
+	replicatable: boolean;
+}
 
 export const toDebug = true;
 
@@ -49,6 +61,13 @@ export namespace DataManager {
 		const index = find(holder, tags);
 		if (index !== -1) return DataObjects[index];
 		return undefined;
+	}
+
+	export function getTagged(tags: ReadonlyArray<string>): Array<DataObject<Holdable>> {
+		return DataObjects.filter((dataObject) => {
+			const compareTags = dataObject.getTags();
+			return tags.every((tag) => compareTags.includes(tag));
+		});
 	}
 
 	export function getObjects() {

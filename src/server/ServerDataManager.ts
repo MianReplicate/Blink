@@ -1,6 +1,6 @@
 import { Object } from "@rbxts/luau-polyfill";
 import { HttpService, Players, Workspace } from "@rbxts/services";
-import { DataManager, Debug, Holdable, Keyable, NetworkedDataObject, Valuable } from "shared/DataManager";
+import { DataManager, Debug, Holdable, Keyable, NetworkedDataObject, Replicatable, Valuable } from "shared/DataManager";
 import {
 	EditFunction,
 	HoldableProxy,
@@ -122,7 +122,8 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 						playerStorageMap.set(player, storage);
 					}
 
-					storage.set(toUse, accessibility.canSeeValue ? value : "unreplicated");
+					const replicatable = value !== undefined && (value as Replicatable).replicatable;
+					storage.set(toUse, accessibility.canSeeValue && replicatable ? value : "unreplicated");
 				}
 			});
 		});
@@ -194,7 +195,9 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 					dataObject.keyAccessibilities.forEach((predicate, key) => {
 						const accessibility = this.GetPlayerKeyAccessibility(player, predicate);
 						if (accessibility.canSeeKey) {
-							storage.set(key, accessibility.canSeeValue ? dataObject.getValue(key) : "unreplicated");
+							const value = dataObject.getValue<Valuable>(key);
+							const replicatable = value !== undefined && (value as Replicatable).replicatable;
+							storage.set(key, accessibility.canSeeValue && replicatable ? value : "unreplicated");
 						}
 					});
 
@@ -224,6 +227,14 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 		this.accessor = predicate;
 	}
 
+	public setFutureCriteriaForKeys(predicate: PlayerKeyPredicate) {
+		return this.addListener({
+			callback: (key) => {
+				this.setPlayerCriteriaForKey(key, predicate);
+			},
+		});
+	}
+
 	/**
 	 * Set a key predicate for the specified key
 	 * @param keys Keys to replicate
@@ -231,6 +242,9 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 	 */
 	public setPlayerCriteriaForKey(key: Keyable, predicate: PlayerKeyPredicate) {
 		if (this.isPendingGC()) return;
+		if (!this.storage.has(key)) {
+			return;
+		}
 		this.keyAccessibilities.set(key, predicate);
 		this.dirtyKeys.add(key);
 	}
