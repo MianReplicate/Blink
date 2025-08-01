@@ -63,6 +63,12 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 		if (this.keyAccessibilities.has(key)) this.dirtyKeys.add(key);
 	}
 
+	public removeKey(key: Keyable) {
+		if (this.isPendingGC()) return;
+		super.removeKey(key);
+		if (this.keyAccessibilities.has(key)) this.dirtyKeys.add(key);
+	}
+
 	public override destroy(): void {
 		super.destroy();
 		PendingGCFlush.push(this);
@@ -106,6 +112,7 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 
 		this.dirtyKeys.forEach((key) => {
 			const criterias = this.keyAccessibilities.get(key) as PlayerKeyPredicate;
+
 			const accessorPlayers = ServerDataObject.GetPlayerAccessibilities(players, this.accessor);
 			const matchingPlayers = Object.entries(
 				ServerDataObject.GetPlayerKeyAccessibilities(players, criterias),
@@ -134,11 +141,19 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 					}
 
 					const replicatable =
-						value !== undefined &&
-						(!typeIs(value, "table") || (typeIs(value, "table") && (value as Replicatable).replicatable));
+						value === undefined ||
+						(value !== undefined &&
+							(!typeIs(value, "table") ||
+								(typeIs(value, "table") && (value as Replicatable).replicatable)));
+					if (value === undefined || !this.storage.has(key)) value = "undefined"; // so the client can see it's undefined
 					storage.set(toUse, accessibility.canSeeValue && replicatable ? value : "unreplicated");
 				}
 			});
+
+			if (!this.storage.has(key)) {
+				this.keyAccessibilities.delete(key);
+				this.keyReplicateTypes.delete(key);
+			}
 		});
 
 		this.dirtyKeys.clear();
@@ -232,11 +247,13 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 					dataObject.keyAccessibilities.forEach((predicate, key) => {
 						const accessibility = this.GetPlayerKeyAccessibility(player, predicate);
 						if (accessibility.canSeeKey) {
-							const value = dataObject.getValue<Valuable>(key);
+							let value = dataObject.getValue<Valuable>(key);
 							const replicatable =
-								value !== undefined &&
-								(!typeIs(value, "table") ||
-									(typeIs(value, "table") && (value as Replicatable).replicatable));
+								value === undefined ||
+								(value !== undefined &&
+									(!typeIs(value, "table") ||
+										(typeIs(value, "table") && (value as Replicatable).replicatable)));
+							if (value === undefined) value = "undefined"; // so the client can see it's undefined
 							storage.set(key, accessibility.canSeeValue && replicatable ? value : "unreplicated");
 						}
 					});

@@ -1,7 +1,7 @@
 import { DataManager, Keyable } from "../shared/DataManager";
 import { Actor } from "./Roles/Actor";
 import { Survivor, SurvivorList } from "./Roles/Survivor";
-import { ServerDataObject } from "./ServerDataManager";
+import { ServerDataObject } from "./ServerDataObject";
 
 export enum ActorType {
 	Survivor,

@@ -1,6 +1,6 @@
 import { Players, ReplicatedStorage } from "@rbxts/services";
 import { Util } from "shared/Util";
-import { GameHelper } from "./GameLibrary";
+import { ActorType, GameHelper } from "./GameHelper";
 
 type Command = (player: Player, args: string[]) => unknown;
 
@@ -9,11 +9,11 @@ const prefix = "/";
 const commands = new Map<string, Command>();
 
 commands.set("becomerole", (player, args) => {
-	const role = args[0];
+	const role = args[0].lower();
 	const optionalPlayerName = args[1];
 	player = (optionalPlayerName && Util.getPlayerFromName(optionalPlayerName)) || player;
 
-	// GameLibrary.becomeRole(player);
+	GameHelper.changeIntoRole("survivor".match(role)[0] ? ActorType.Survivor : ActorType.Survivor, player);
 });
 
 function handleCommand(player: Player, message: string) {
@@ -23,14 +23,18 @@ function handleCommand(player: Player, message: string) {
 	if (indexStart === 1) {
 		message = message.sub(2);
 		const split = message.split(" ");
-		const command = split[1].lower();
+		const command = split[0].lower();
 		split.remove(0);
 
 		const commandFunc = commands.get(command);
 		if (commandFunc !== undefined) {
-			commandFunc(player, split);
+			try {
+				commandFunc(player, split);
+			} catch (error) {
+				print("An error occurred when running the", command, "command!", error);
+			}
 		} else {
-			warn(`{command} is not a valid command! | Used by {player}`);
+			warn(command + ` is not a valid command! | Used by ` + player.Name);
 		}
 	}
 }

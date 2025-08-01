@@ -1,4 +1,4 @@
-import { ServerDataObject } from "server/ServerDataManager";
+import { ServerDataObject } from "server/ServerDataObject";
 import { Replicatable } from "shared/DataManager";
 
 export abstract class Actor implements Replicatable {

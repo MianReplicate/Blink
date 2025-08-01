@@ -42,6 +42,7 @@ export class ClientDataObject<T extends Holdable> extends NetworkedDataObject<T>
 	 */
 	public override setValue(key: Keyable, value: Valuable, fromServer: boolean = false): boolean {
 		if (this.isPendingGC()) return false;
+		if (value === "undefined") value = undefined;
 		if (!this.isASyncedObject || fromServer) {
 			super.setValue(key, value);
 			return true;

@@ -1,9 +1,11 @@
 import { TickManager } from "shared/TickManager";
 import { Survivor } from "./Roles/Survivor";
 import { Workspace } from "@rbxts/services";
-import { GameHelper } from "./GameLibrary";
-import { ServerDataObject } from "./ServerDataManager";
+import { GameHelper } from "./GameHelper";
+import { ServerDataObject } from "./ServerDataObject";
 import { ReplicateType } from "shared/ReplicateManager";
+import { RoleAction } from "shared/RoleActions";
+import { Actor } from "./Roles/Actor";
 
 // GameLibrary.createOrGetSurvivor(Workspace.Baseplate);
 

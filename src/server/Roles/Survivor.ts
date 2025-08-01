@@ -1,6 +1,7 @@
 import { ReplicatedStorage, TweenService } from "@rbxts/services";
-import { PlayerKeyPredicate, ServerDataObject } from "../ServerDataManager";
+import { PlayerKeyPredicate, ServerDataObject } from "../ServerDataObject";
 import { Actor } from "./Actor";
+import { Array } from "@rbxts/luau-polyfill";
 
 export const SurvivorList = ServerDataObject.getOrConstruct<string>("List", ["Survivor"]);
 
@@ -14,7 +15,7 @@ export class Survivor extends Actor {
 		let survivor = SurvivorList.getValue<Survivor>(character);
 		if (survivor !== undefined) return survivor;
 
-		survivor = new Survivor(character);
+		survivor = new Survivor(character, player);
 		SurvivorList.setValue(character, survivor);
 
 		return survivor;
@@ -36,7 +37,7 @@ export class Survivor extends Actor {
 		humanoid.JumpPower = 0;
 		humanoid.BreakJointsOnDeath = false;
 
-		this.data.setValue("blinking", false);
+		this.data.setValue("blinking", undefined);
 		this.data.setValue("blinkTrack", animator.LoadAnimation(ReplicatedStorage.SurvivorAnimations.Blink.Clone()));
 
 		if (player !== undefined) {
@@ -53,7 +54,12 @@ export class Survivor extends Actor {
 		character.Archivable = true;
 
 		this.defaultValues();
+		this.queueStraining(true);
 	}
+
+	// public getClientMethods(): Array<string> {
+	// 	return ["blink", "strain"];
+	// }
 
 	public defaultValues() {
 		this.data.setValue("maxBlinkMeter", 100);
@@ -73,7 +79,7 @@ export class Survivor extends Actor {
 	public blink() {
 		if (!this.isAlive()) return;
 
-		if (this.data.getValue<boolean>("blinking")) return;
+		if (this.data.getValue<number>("blinking") !== undefined) return;
 
 		this.queueStraining(false);
 		this.data.setValue("strainTime", this.data.getValue<number>("blinkResetTimer") / 2);
@@ -132,7 +138,13 @@ export class Survivor extends Actor {
 		return !this.data.getValue<boolean>("dead");
 	}
 
-	public die() {}
+	public die() {
+		this.destroy();
+		const player = this.data.getValue<Player>("player");
+		if (player) {
+			player.LoadCharacter();
+		}
+	}
 
 	public destroy() {
 		SurvivorList.removeKey(this.getData().getHolder());
@@ -142,7 +154,10 @@ export class Survivor extends Actor {
 	public tick() {
 		super.tick();
 
+		if (!this.isAlive()) return;
+
 		const strainValue = this.data.getValue<number>("straining");
+		const blinking = this.data.getValue<number>("blinking");
 		if (strainValue !== undefined) {
 			const deltaTime = os.clock() - strainValue;
 			if (deltaTime > this.data.getValue<number>("strainTime")) {
@@ -159,9 +174,9 @@ export class Survivor extends Actor {
 					this.data.setValue("straining", os.clock());
 				}
 			}
-		} else {
+		} else if (blinking !== undefined) {
 			// currently blinking
-			const deltaTime = os.clock() - this.data.getValue<number>("blinking");
+			const deltaTime = os.clock() - blinking;
 			if (deltaTime >= this.data.getValue<number>("blinkResetTimer")) {
 				this.data.setValue("blinking", undefined);
 				this.setBlinkMeter(this.data.getValue("blinkMeter"));
