@@ -9,8 +9,14 @@ export abstract class Actor implements Replicatable {
 		this.data = data;
 	}
 
-	abstract die(): void;
-	abstract destroy(): void;
+	public die(): void {
+		this.data.setValue("dead", true);
+	}
+
+	public destroy(): void {
+		this.data.destroy();
+	}
+
 	public tick(): void {
 		const humanoid = this.data.getHolder().FindFirstChild("Humanoid") as Humanoid;
 		if (humanoid === undefined) this.destroy();

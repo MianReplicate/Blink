@@ -146,7 +146,10 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 							(!typeIs(value, "table") ||
 								(typeIs(value, "table") && (value as Replicatable).replicatable)));
 					if (value === undefined || !this.storage.has(key)) value = "undefined"; // so the client can see it's undefined
-					storage.set(toUse, accessibility.canSeeValue && replicatable ? value : "unreplicated");
+					storage.set(
+						toUse,
+						(accessibility.canSeeValue && replicatable) || !this.storage.has(key) ? value : "unreplicated",
+					);
 				}
 			});
 

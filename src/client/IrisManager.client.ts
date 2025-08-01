@@ -20,13 +20,13 @@ class ENumber extends Editable<number> {
 	}
 }
 
-class EString implements Editable<string> {
+class EString extends Editable<string> {
 	public convertFrom(stringVariant: string): string | undefined {
 		return tostring(stringVariant);
 	}
 }
 
-class EBoolean implements Editable<boolean> {
+class EBoolean extends Editable<boolean> {
 	public convertFrom(stringVariant: string): boolean | undefined {
 		const lower = stringVariant.lower();
 		if (lower === "false") return false;
@@ -128,7 +128,7 @@ Iris.Connect(() => {
 							if (storageTree.state.isUncollapsed.get()) {
 								dataObject.getStorage().forEach((value, key) => {
 									const classEdit = EditableTypes.get(typeOf(value));
-									if (classEdit !== undefined) {
+									if (classEdit !== undefined && value !== "unreplicated") {
 										const button = Iris.Button([key + ": " + value]);
 
 										if (button.clicked()) {

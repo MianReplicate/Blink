@@ -1,16 +1,55 @@
 interface ReplicatedStorage extends Instance {
-	SurvivorAnimations: Folder & {
-		Dead: Animation;
-		Blink: Animation;
-	};
 	TS: Folder & {
-		module: ModuleScript;
-		TickManager: ModuleScript;
 		DataManager: ModuleScript;
+		TickManager: ModuleScript;
+		RoleActions: ModuleScript;
 		Util: ModuleScript;
 		ReplicateManager: ModuleScript;
 	};
 	Settings: Configuration;
+	SurvivorAnimations: Folder & {
+		Dead: Animation;
+		Blink: Animation;
+	};
+	Client: Folder & {
+		Settings: Configuration;
+		Highlights: Folder & {
+			Survivor: Highlight;
+			Angel: Highlight;
+		};
+		AngelLight: PointLight;
+		RoundUI: ScreenGui & {
+			Survivor: Frame & {
+				Blink: Frame & {
+					Half1: ImageLabel;
+					Half2: ImageLabel;
+				};
+				MobileList: Frame & {
+					UIAspectRatioConstraint: UIAspectRatioConstraint;
+					ManualBlink: ImageLabel;
+					Item: ImageLabel;
+					Spam: ImageLabel;
+				};
+			};
+			Angel: Frame & {
+				ScreenEffect: ImageLabel;
+				MobileList: Frame & {
+					MainAbility: ImageLabel;
+					UIAspectRatioConstraint: UIAspectRatioConstraint;
+					SecondaryAbility: ImageLabel;
+				};
+				List: Frame & {
+					UIAspectRatioConstraint: UIAspectRatioConstraint;
+					Bar: ImageLabel & {
+						UIGradient: UIGradient;
+					};
+				};
+			};
+			Common: Frame & {
+				DeathScreen: Frame;
+			};
+		};
+	};
 	rbxts_include: Folder & {
 		RuntimeLib: ModuleScript;
 		Promise: ModuleScript;

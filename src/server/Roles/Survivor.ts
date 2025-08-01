@@ -76,16 +76,16 @@ export class Survivor extends Actor {
 		this.data.setValue("minStrainIncrease", 0);
 	}
 
-	public blink() {
-		if (!this.isAlive()) return;
+	public blink(): boolean {
+		if (!this.isAlive()) return false;
 
-		if (this.data.getValue<number>("blinking") !== undefined) return;
+		if (this.data.getValue<number>("blinking") !== undefined) return false;
 
-		this.queueStraining(false);
-		this.data.setValue("strainTime", this.data.getValue<number>("blinkResetTimer") / 2);
-		this.setBlinkMeter(0);
 		this.defaultValues();
+		this.setBlinkMeter(0, true);
 		this.data.setValue("blinking", os.clock());
+
+		return true;
 	}
 
 	public queueStraining(start: boolean) {
@@ -94,15 +94,15 @@ export class Survivor extends Actor {
 		this.data.setValue("straining", start ? os.clock() : undefined);
 	}
 
-	public setBlinkMeter(newValue: number) {
+	public setBlinkMeter(newValue: number, fastAnimation?: boolean) {
 		if (!this.isAlive()) return;
 
 		this.data.setValue("blinkMeter", math.min(newValue, this.data.getValue("maxBlinkMeter")));
 		const track = this.data.getValue<AnimationTrack>("blinkTrack");
 		const trackTime = math.min(1 - newValue / this.data.getValue<number>("maxBlinkMeter"), 0.99);
-		const useTime =
-			(newValue === 100 && this.data.getValue<number>("blinkResetTimer") / 2) ||
-			this.data.getValue<number>("strainTime");
+		const useTime = fastAnimation
+			? this.data.getValue<number>("blinkResetTimer") / 2
+			: this.data.getValue<number>("strainTime");
 		const tInfo = new TweenInfo(useTime, Enum.EasingStyle.Sine, Enum.EasingDirection.In, 0, false, 0);
 		const tweenToPosition = TweenService.Create(track, tInfo, { TimePosition: trackTime });
 		if (!track.IsPlaying) {
@@ -112,8 +112,8 @@ export class Survivor extends Actor {
 		tweenToPosition.Play();
 	}
 
-	public strain() {
-		if (!this.isAlive()) return;
+	public strain(): boolean {
+		if (!this.isAlive()) return false;
 
 		const blinkMeter = this.data.getValue<number>("blinkMeter");
 		const strainIncrease = this.data.getValue<number>("strainIncrease");
@@ -131,7 +131,9 @@ export class Survivor extends Actor {
 				"strainTime",
 				math.max(this.data.getValue<number>("strainTime") - 0.04, this.data.getValue<number>("minStrainTime")),
 			);
+			return true;
 		}
+		return false;
 	}
 
 	public isAlive() {
@@ -139,8 +141,9 @@ export class Survivor extends Actor {
 	}
 
 	public die() {
-		this.destroy();
+		super.die();
 		const player = this.data.getValue<Player>("player");
+		this.destroy();
 		if (player) {
 			player.LoadCharacter();
 		}
@@ -148,7 +151,7 @@ export class Survivor extends Actor {
 
 	public destroy() {
 		SurvivorList.removeKey(this.getData().getHolder());
-		this.getData().destroy();
+		super.destroy();
 	}
 
 	public tick() {
@@ -179,7 +182,7 @@ export class Survivor extends Actor {
 			const deltaTime = os.clock() - blinking;
 			if (deltaTime >= this.data.getValue<number>("blinkResetTimer")) {
 				this.data.setValue("blinking", undefined);
-				this.setBlinkMeter(this.data.getValue("blinkMeter"));
+				this.setBlinkMeter(this.data.getValue("maxBlinkMeter"), true);
 				this.queueStraining(true);
 			}
 		}

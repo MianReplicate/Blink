@@ -5,9 +5,9 @@ import { HttpService, ReplicatedStorage, RunService, Workspace } from "@rbxts/se
 import { HoldableProxy } from "./ReplicateManager";
 import { Object } from "@rbxts/luau-polyfill";
 
-type Listener = {
+type Listener<T extends Valuable> = {
 	key?: Keyable | undefined;
-	callback: (key: Keyable, value: Valuable, oldValue: Valuable | undefined) => void;
+	callback: (key: Keyable, value: T, oldValue: T | undefined) => void;
 };
 
 export type Holdable = Instance | string;
@@ -20,13 +20,14 @@ export type Valuable =
 	| Valuable[]
 	| Map<Keyable, Valuable>
 	| Replicatable
-	| undefined;
+	| undefined
+	| unknown;
 
 export interface Replicatable {
 	replicatable: boolean;
 }
 
-export const toDebug = true;
+export const toDebug = false;
 
 // export type ReplicatedKey = {
 // 	holder: Holdable;
@@ -81,7 +82,7 @@ export namespace DataManager {
 class DataObject<T extends Holdable> {
 	private holder: T;
 	protected storage: Map<Keyable, Valuable>;
-	private listeners: Map<string, Listener>;
+	private listeners: Map<string, Listener<unknown>>;
 	private pendingGC: boolean;
 	protected tags: ReadonlyArray<string>;
 
@@ -220,11 +221,11 @@ class DataObject<T extends Holdable> {
 	 * @param listener A function that is called whenever values are set
 	 * @returns A callback to stop the listener
 	 */
-	public addListener(listener: Listener) {
+	public addListener<T extends Valuable>(listener: Listener<T>) {
 		if (this.pendingGC) return;
 
 		const uuid = HttpService.GenerateGUID();
-		this.listeners.set(uuid, listener);
+		this.listeners.set(uuid, listener as Listener<unknown>);
 
 		return () => this.listeners.delete(uuid);
 	}
@@ -290,7 +291,7 @@ export class NetworkedDataObject<T extends Holdable> extends DataObject<T> {
 
 function GenerateIDForInstance(instance: Instance) {
 	if (instance.GetAttribute("uuid") === undefined) {
-		const uuid = HttpService.GenerateGUID();
+		const uuid = HttpService.GenerateGUID(false);
 		instance.SetAttribute("uuid", uuid);
 		instance.AddTag(uuid);
 	}

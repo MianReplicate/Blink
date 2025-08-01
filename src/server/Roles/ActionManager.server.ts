@@ -17,17 +17,16 @@ namespace Actions {
 	export class Blink extends Action {
 		public execute() {
 			if (this.role instanceof Survivor) {
-				this.role.blink();
-				return true;
+				return this.role.blink();
 			}
 			return false;
 		}
 	}
+
 	export class Strain extends Action {
 		public execute() {
 			if (this.role instanceof Survivor) {
-				this.role.strain();
-				return true;
+				return this.role.strain();
 			}
 			return false;
 		}
