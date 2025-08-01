@@ -2,6 +2,7 @@ import { ReplicatedStorage, TweenService } from "@rbxts/services";
 import { PlayerKeyPredicate, ServerDataObject } from "../ServerDataObject";
 import { Actor } from "./Actor";
 import { Array } from "@rbxts/luau-polyfill";
+import { Util } from "shared/Util";
 
 export const SurvivorList = ServerDataObject.getOrConstruct<string>("List", ["Survivor"]);
 
@@ -159,6 +160,11 @@ export class Survivor extends Actor {
 		super.tick();
 
 		if (!this.isAlive()) return;
+
+		const humanoid = this.data.getHolder().FindFirstChildWhichIsA("Humanoid");
+		if (humanoid !== undefined) {
+			humanoid.WalkSpeed = Util.getWalkDirection(humanoid).Y >= 0 ? 16 : 10;
+		}
 
 		const strainValue = this.data.getValue<number>("straining");
 		const blinking = this.data.getValue<number>("blinking");
