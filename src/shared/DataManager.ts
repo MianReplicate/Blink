@@ -164,6 +164,21 @@ class DataObject<T extends Holdable> {
 		return this.pendingGC;
 	}
 
+	protected callListeners(key: Keyable, value: Valuable, oldValue: Valuable) {
+		this.listeners.forEach((listener) => {
+			task.spawn(() => {
+				const response = pcall(() => {
+					if (listener.key === undefined || listener.key === key) {
+						listener.callback(key, value, oldValue);
+					}
+				});
+				if (!response[0]) {
+					warn("A listener errored!", response[1]);
+				}
+			});
+		});
+	}
+
 	/**
 	 * Set a key to a value
 	 * @param key The key to set for this value
@@ -175,11 +190,7 @@ class DataObject<T extends Holdable> {
 
 		this.storage.set(key, value);
 
-		this.listeners.forEach((listener) => {
-			if (listener.key === undefined || listener.key === key) {
-				listener.callback(key, value, oldValue);
-			}
-		});
+		this.callListeners(key, value, oldValue);
 	}
 
 	public removeKey(key: Keyable) {
@@ -187,11 +198,7 @@ class DataObject<T extends Holdable> {
 		const oldValue = this.storage.get(key);
 		this.storage.delete(key);
 
-		this.listeners.forEach((listener) => {
-			if (listener.key === undefined || listener.key === key) {
-				listener.callback(key, "deleted", oldValue);
-			}
-		});
+		this.callListeners(key, "deleted", oldValue);
 	}
 
 	public addValue(value: Valuable) {
@@ -205,6 +212,22 @@ class DataObject<T extends Holdable> {
 		if (!filteredValues.isEmpty()) return filteredValues[0][0] as Keyable;
 
 		return undefined;
+	}
+
+	public waitForValue<Valuable>(key: Keyable, secondsToWait: number = math.huge): Valuable | undefined {
+		let value: Valuable | undefined = undefined;
+		const heartbeat = RunService.Heartbeat.Connect((deltaTime) => {
+			secondsToWait -= deltaTime;
+
+			value = this.getValue(key);
+
+			if (secondsToWait <= 0 || value !== undefined) heartbeat.Disconnect();
+		});
+
+		while (heartbeat.Connected && value === undefined) {
+			task.wait();
+		}
+		return value;
 	}
 
 	/**

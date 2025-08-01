@@ -142,11 +142,12 @@ export class Survivor extends Actor {
 
 	public die() {
 		super.die();
-		const player = this.data.getValue<Player>("player");
+
 		this.destroy();
-		if (player) {
-			player.LoadCharacter();
-		}
+		// this.destroy();
+		// if (player) {
+		// 	player.LoadCharacter();
+		// }
 	}
 
 	public destroy() {

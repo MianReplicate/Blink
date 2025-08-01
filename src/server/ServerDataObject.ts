@@ -22,12 +22,14 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 	private keyReplicateTypes: Map<Keyable, ReplicateType>;
 	private keyAccessibilities: Map<Keyable, PlayerKeyPredicate>;
 	private dirtyKeys: Set<Keyable>;
+	private dirtyRemovedKeys: Set<Keyable>;
 
 	protected constructor(holder: T, tags: Array<string>) {
 		super(holder, tags);
 		this.keyAccessibilities = new Map();
 		this.keyReplicateTypes = new Map();
 		this.dirtyKeys = new Set();
+		this.dirtyRemovedKeys = new Set();
 		this.accessor = () => false;
 	}
 
@@ -66,7 +68,12 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 	public removeKey(key: Keyable) {
 		if (this.isPendingGC()) return;
 		super.removeKey(key);
-		if (this.keyAccessibilities.has(key)) this.dirtyKeys.add(key);
+		if (this.keyAccessibilities.has(key)) {
+			this.dirtyRemovedKeys.add(key);
+		} else {
+			this.keyAccessibilities.delete(key);
+			this.keyReplicateTypes.delete(key);
+		}
 	}
 
 	public override destroy(): void {
@@ -103,14 +110,15 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 	 * Flushes all dirty keys and replicates them to all valid players.
 	 */
 	private flush() {
-		if (this.isPendingGC() || this.dirtyKeys.isEmpty()) return undefined;
+		if (this.isPendingGC() || (this.dirtyKeys.isEmpty() && this.dirtyRemovedKeys.isEmpty())) return undefined;
 
 		const reliablePlayerStorageMap = new Map<Player, Map<Keyable, Valuable>>();
 		const unreliablePlayerStorageMap = new Map<Player, Map<Keyable, Valuable>>();
 
 		const players = Players.GetPlayers();
+		const keys = new Set([...this.dirtyKeys, ...this.dirtyRemovedKeys]);
 
-		this.dirtyKeys.forEach((key) => {
+		keys.forEach((key) => {
 			const criterias = this.keyAccessibilities.get(key) as PlayerKeyPredicate;
 
 			const accessorPlayers = ServerDataObject.GetPlayerAccessibilities(players, this.accessor);
@@ -128,7 +136,7 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 				const accessibility = entry[1];
 
 				if (accessibility.canSeeKey) {
-					const replicateType = this.keyReplicateTypes.get(key) || ReplicateType.Unreliable;
+					const replicateType = this.keyReplicateTypes.get(key) || ReplicateType.Reliable;
 					const storageMap =
 						replicateType === ReplicateType.Reliable
 							? reliablePlayerStorageMap
@@ -153,7 +161,7 @@ export class ServerDataObject<T extends Holdable> extends NetworkedDataObject<T>
 				}
 			});
 
-			if (!this.storage.has(key)) {
+			if (this.dirtyRemovedKeys.has(key)) {
 				this.keyAccessibilities.delete(key);
 				this.keyReplicateTypes.delete(key);
 			}

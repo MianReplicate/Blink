@@ -43,6 +43,7 @@ export class ClientDataObject<T extends Holdable> extends NetworkedDataObject<T>
 	public override setValue(key: Keyable, value: Valuable, fromServer: boolean = false): boolean {
 		if (this.isPendingGC()) return false;
 		if (value === "undefined") value = undefined;
+
 		if (!this.isASyncedObject || fromServer) {
 			super.setValue(key, value);
 			return true;
@@ -73,7 +74,7 @@ export class ClientDataObject<T extends Holdable> extends NetworkedDataObject<T>
 const replicateCallback = (replicatedObjects: ReplicatedDataObjects) => {
 	Debug("Received", replicatedObjects);
 
-	replicatedObjects.forEach((replicatedObject) => {
+	replicatedObjects.forEach((replicatedObject, index) => {
 		const proxy = replicatedObject.holderProxy;
 		if (replicatedObject.pendingGC) {
 			if (proxy.holder !== undefined) {
@@ -82,7 +83,12 @@ const replicateCallback = (replicatedObjects: ReplicatedDataObjects) => {
 			}
 		} else if (replicatedObject.dirtyKeys !== undefined) {
 			if (proxy.holder === undefined && proxy.uuid !== undefined) {
-				AwaitingToSync.set(proxy.uuid, { tags: proxy.tags, storage: replicatedObject.dirtyKeys });
+				const existing = AwaitingToSync.get(proxy.uuid);
+				if (existing) {
+					replicatedObject.dirtyKeys.forEach((value, key) => existing.storage.set(key, value));
+				} else {
+					AwaitingToSync.set(proxy.uuid, { tags: proxy.tags, storage: replicatedObject.dirtyKeys });
+				}
 			} else {
 				const dataObject = ClientDataObject.getOrConstruct(
 					proxy.holder,

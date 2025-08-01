@@ -10,5 +10,5 @@ import { Actor } from "./Roles/Actor";
 // GameLibrary.createOrGetSurvivor(Workspace.Baseplate);
 
 // TickManager.addTickable("Angels");
-TickManager.addTickable("Survivors", (deltaTime) => GameHelper.getSurvivors().forEach((survivor) => survivor.tick()));
+TickManager.addTickable("[Survivors]", (deltaTime) => GameHelper.getSurvivors().forEach((survivor) => survivor.tick()));
 // TickManager.addTickable("Lights");

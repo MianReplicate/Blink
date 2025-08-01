@@ -63,6 +63,7 @@ function onRoleCreate(role: Roles, roleData: ClientDataObject<Instance>) {
 		const Half1 = BlinkFrame.Half1;
 		const Half2 = BlinkFrame.Half2;
 		const MaxDifference = 0.2;
+		const MaxValue = roleData.waitForValue<number>("maxBlinkMeter") as number;
 
 		roleData.addListener<number>({
 			key: "blinking",
@@ -71,7 +72,6 @@ function onRoleCreate(role: Roles, roleData: ClientDataObject<Instance>) {
 				let half2Tween;
 				let tweenBlinkFrame;
 
-				print(NewValue);
 				if (NewValue !== undefined) {
 					const Scale = Half2.Position.Y.Scale;
 					const AmountInChange = (MaxDifference - (1 - Scale)) / MaxDifference;
@@ -115,7 +115,6 @@ function onRoleCreate(role: Roles, roleData: ClientDataObject<Instance>) {
 		roleData.addListener<number>({
 			key: "blinkMeter",
 			callback: (_, NewValue, OldValue) => {
-				const MaxValue = roleData.getValue<number>("maxBlinkMeter");
 				if (NewValue > 0 && NewValue < MaxValue) {
 					const _TweenInfo = new TweenInfo(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, false);
 
