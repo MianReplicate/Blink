@@ -1,7 +1,7 @@
 import { GameHelper } from "server/GameHelper";
 import { ActionType, RoleAction } from "shared/RoleActions";
-import { Actor } from "./Actor";
-import { Survivor } from "./Survivor";
+import { Actor } from "./Roles/Actor";
+import { Survivor } from "./Roles/Survivor";
 
 abstract class Action {
 	protected readonly role: Actor;

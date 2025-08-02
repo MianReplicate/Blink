@@ -3,6 +3,8 @@ import { RunService } from "@rbxts/services";
 
 type Tickable = (deltaTime: number) => void;
 
+let ticking = true;
+
 export namespace TickManager {
 	const ToTick = new Map<string, Tickable>();
 	export let ToTickEntries = new Array<[string, Tickable]>();
@@ -13,11 +15,17 @@ export namespace TickManager {
 
 		print("Added " + name + " for ticking");
 	}
+
+	export function setTicking(start: boolean) {
+		ticking = start;
+	}
 }
 
 RunService.Heartbeat.Connect((deltaTime) => {
 	// end is highest priority (runs first), beginning is lowest priority (runs last)
-	for (let i = TickManager.ToTickEntries.size() - 1; i >= 0; i--) {
-		TickManager.ToTickEntries[i][1](deltaTime);
+	if (ticking) {
+		for (let i = TickManager.ToTickEntries.size() - 1; i >= 0; i--) {
+			TickManager.ToTickEntries[i][1](deltaTime);
+		}
 	}
 });

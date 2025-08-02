@@ -1,8 +1,16 @@
-import { PhysicsService, Players, ReplicatedStorage, TweenService, Workspace } from "@rbxts/services";
+import {
+	PhysicsService,
+	Players,
+	ReplicatedStorage,
+	ServerScriptService,
+	TweenService,
+	Workspace,
+} from "@rbxts/services";
 import { PlayerKeyPredicate, ServerDataObject } from "../ServerDataObject";
 import { Actor } from "./Actor";
 import { Array } from "@rbxts/luau-polyfill";
 import { Util } from "shared/Util";
+import EasyRagdoll from "shared/EasyRagdoll";
 
 export const SurvivorList = ServerDataObject.getOrConstruct<string>("List", ["Survivor"]);
 
@@ -141,7 +149,7 @@ export class Survivor extends Actor {
 		super.die();
 		const character = this.getData().getHolder();
 		if (character !== undefined) {
-			const clone = character.Clone();
+			const clone = character.Clone() as Model;
 			clone
 				.GetDescendants()
 				.filter((value) => value.IsA("BaseScript"))
@@ -151,20 +159,21 @@ export class Survivor extends Actor {
 
 			character.Destroy();
 
-			clone
-				.GetChildren()
-				.filter(
-					(value) =>
-						value.Name !== "HumanoidRootPart" && value.Name !== "CollisionPart" && value.IsA("BasePart"),
-				)
-				.forEach((value) => {
-					if (value.IsA("BasePart")) {
-						value.CanCollide = true;
-						value.GetPropertyChangedSignal("CanCollide").Connect(() => (value.CanCollide = true));
-					}
-				});
-			(clone.WaitForChild("CollisionPart") as BasePart).CanCollide = false;
-			(clone.WaitForChild("HumanoidRootPart") as BasePart).CanCollide = false;
+			EasyRagdoll.SetRagdoll(clone, true, false);
+			// clone
+			// 	.GetChildren()
+			// 	.filter(
+			// 		(value) =>
+			// 			value.Name !== "HumanoidRootPart" && value.Name !== "CollisionPart" && value.IsA("BasePart"),
+			// 	)
+			// 	.forEach((value) => {
+			// 		if (value.IsA("BasePart")) {
+			// 			value.CanCollide = true;
+			// 			value.GetPropertyChangedSignal("CanCollide").Connect(() => (value.CanCollide = true));
+			// 		}
+			// 	});
+			// (clone.WaitForChild("CollisionPart") as BasePart).CanCollide = false;
+			// (clone.WaitForChild("HumanoidRootPart") as BasePart).CanCollide = false;
 			clone
 				.GetDescendants()
 				.filter((value) => value.IsA("BasePart"))

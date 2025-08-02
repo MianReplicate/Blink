@@ -2,6 +2,7 @@ import { Lighting, Players, ReplicatedStorage, TweenService, UserInputService } 
 import { ActionManager } from "./ActionManager";
 import { ActionType } from "shared/RoleActions";
 import { ClientDataObject } from "./ClientDataObject";
+import { AddTouchUI } from "./TouchManager";
 
 type Roles = "Survivor" | "Angel";
 type LightingType = "Lobby" | "Round";
@@ -143,6 +144,10 @@ function onRoleCreate(role: Roles, roleData: ClientDataObject<Instance>) {
 				}
 			},
 		});
+
+		AddTouchUI(MobileList);
+		MobileList.ManualBlink.TouchTap.Connect(() => ActionManager.callAction("Blink"));
+		MobileList.Spam.TouchTap.Connect(() => ActionManager.callAction("Strain"));
 	}
 
 	activeRoundUI.Parent = Player.FindFirstChildOfClass("PlayerGui");

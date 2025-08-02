@@ -1,6 +1,7 @@
 import { Players, ReplicatedStorage } from "@rbxts/services";
 import { Util } from "shared/Util";
 import { ActorType, GameHelper } from "./GameHelper";
+import { TickManager } from "shared/TickManager";
 
 type Command = (player: Player, args: string[]) => unknown;
 
@@ -14,6 +15,15 @@ commands.set("becomerole", (player, args) => {
 	player = (optionalPlayerName && Util.getPlayerFromName(optionalPlayerName)) || player;
 
 	GameHelper.changeIntoRole("survivor".match(role)[0] ? ActorType.Survivor : ActorType.Survivor, player);
+});
+
+commands.set("tick", (player, args) => {
+	const start = args[0].lower();
+	if (start === "true") {
+		TickManager.setTicking(true);
+	} else if (start === "false") {
+		TickManager.setTicking(false);
+	}
 });
 
 function handleCommand(player: Player, message: string) {
