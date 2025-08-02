@@ -7,6 +7,12 @@ export abstract class Actor implements Replicatable {
 
 	protected constructor(data: ServerDataObject<Instance>) {
 		this.data = data;
+
+		this.data
+			.getHolder()
+			.GetDescendants()
+			.filter((value) => value.IsA("BasePart"))
+			.forEach((value) => (value.CollisionGroup = "Characters"));
 	}
 
 	public die(): void {

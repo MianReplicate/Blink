@@ -4,6 +4,7 @@ import { ActionType } from "shared/RoleActions";
 import { ClientDataObject } from "./ClientDataObject";
 
 type Roles = "Survivor" | "Angel";
+type LightingType = "Lobby" | "Round";
 
 const ClientUI = ReplicatedStorage.Client;
 const SurvivorVision = Lighting.SurvivorVision;
@@ -11,32 +12,27 @@ const SurvivorBlur = Lighting.SurvivorBlur;
 const Player: Player = Players.LocalPlayer;
 let activeRoundUI: typeof ReplicatedStorage.Client.RoundUI | undefined = undefined;
 
-// type EditableLightTypes = "Brightness";
-// type LightingProperties = Map<EditableLightTypes, unknown>;
-// type LightingType = "Lobby" | "Round";
+const lobbyRecord = {
+	Brightness: 1.2,
+} as const;
 
-// const LightingTypes: Map<LightingType, LightingProperties> = new Map();
+const roundRecord = {
+	Brightness: 0,
+} as const;
 
-// const LobbyMap: LightingProperties = new Map();
-// LobbyMap.set("Brightness", 1.2);
+function setLightingType(lightingType: LightingType) {
+	const record = lightingType === "Lobby" ? lobbyRecord : roundRecord;
 
-// const RoundMap: LightingProperties = new Map();
-// RoundMap.set("Brightness", 0);
-
-// LightingTypes.set("Lobby", LobbyMap);
-// LightingTypes.set("Round", RoundMap);
+	for (const [key, value] of pairs(record)) {
+		Lighting[key] = value;
+	}
+}
 
 const ActionMap = new Map<Enum.KeyCode, ActionType>();
 ActionMap.set(Enum.KeyCode.Q, "Blink");
 ActionMap.set(Enum.KeyCode.Space, "Strain");
 ActionMap.set(Enum.KeyCode.ButtonB, "Blink");
 ActionMap.set(Enum.KeyCode.ButtonA, "Strain");
-
-// function setLightingType(lightingType: LightingType) {
-// 	LightingTypes.get(lightingType)?.forEach((value, key) => {
-// 		Lighting[key] = value;
-// 	});
-// }
 
 function resetUI() {
 	activeRoundUI?.Destroy();
@@ -46,6 +42,11 @@ function resetUI() {
 	SurvivorBlur.Size = 0;
 }
 
+function onRoleDelete() {
+	resetUI();
+	setLightingType("Lobby");
+}
+
 function onRoleCreate(role: Roles, roleData: ClientDataObject<Instance>) {
 	resetUI();
 
@@ -53,6 +54,8 @@ function onRoleCreate(role: Roles, roleData: ClientDataObject<Instance>) {
 	activeRoundUI.Common.Visible = true;
 
 	Player.CameraMode = Enum.CameraMode.LockFirstPerson;
+
+	setLightingType("Round");
 
 	if (role === "Survivor") {
 		activeRoundUI.Survivor.Visible = true;
@@ -152,10 +155,14 @@ SurvivorList?.addListener({
 	callback: (key, value, oldValue) => {
 		const character = Player.Character;
 		if (character !== undefined && key === character.GetAttribute("uuid"))
-			onRoleCreate(
-				"Survivor",
-				ClientDataObject.waitFor<Instance>(character, ["Survivor"]) as ClientDataObject<Instance>,
-			);
+			if (value === undefined) {
+				onRoleDelete();
+			} else {
+				onRoleCreate(
+					"Survivor",
+					ClientDataObject.waitFor<Instance>(character, ["Survivor"]) as ClientDataObject<Instance>,
+				);
+			}
 	},
 });
 

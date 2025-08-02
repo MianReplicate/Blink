@@ -1,3 +1,4 @@
+import { PhysicsService } from "@rbxts/services";
 import { DataManager, Keyable } from "../shared/DataManager";
 import { Actor } from "./Roles/Actor";
 import { Survivor, SurvivorList } from "./Roles/Survivor";
@@ -7,6 +8,10 @@ export enum ActorType {
 	Survivor,
 	// Angel,
 }
+
+export const RagdollGroup = PhysicsService.RegisterCollisionGroup("Ragdolls");
+export const ActorGroup = PhysicsService.RegisterCollisionGroup("Characters");
+PhysicsService.CollisionGroupSetCollidable("Ragdolls", "Characters", false);
 
 export namespace GameHelper {
 	export function getSurvivors() {

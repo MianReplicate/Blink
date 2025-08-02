@@ -1,4 +1,4 @@
-import { ReplicatedStorage, TweenService } from "@rbxts/services";
+import { PhysicsService, Players, ReplicatedStorage, TweenService, Workspace } from "@rbxts/services";
 import { PlayerKeyPredicate, ServerDataObject } from "../ServerDataObject";
 import { Actor } from "./Actor";
 import { Array } from "@rbxts/luau-polyfill";
@@ -6,8 +6,8 @@ import { Util } from "shared/Util";
 
 export const SurvivorList = ServerDataObject.getOrConstruct<string>("List", ["Survivor"]);
 
-SurvivorList.setCriteriaForDataObject((plr) => true);
-SurvivorList.setFutureCriteriaForKeys((plr) => {
+SurvivorList.setCriteriaForDataObject(() => true);
+SurvivorList.setFutureCriteriaForKeys(() => {
 	return { canSeeKey: true, canSeeValue: false, canEditValue: false };
 });
 
@@ -57,10 +57,6 @@ export class Survivor extends Actor {
 		this.defaultValues();
 		this.queueStraining(true);
 	}
-
-	// public getClientMethods(): Array<string> {
-	// 	return ["blink", "strain"];
-	// }
 
 	public defaultValues() {
 		this.data.setValue("maxBlinkMeter", 100);
@@ -143,12 +139,46 @@ export class Survivor extends Actor {
 
 	public die() {
 		super.die();
+		const character = this.getData().getHolder();
+		if (character !== undefined) {
+			const clone = character.Clone();
+			clone
+				.GetDescendants()
+				.filter((value) => value.IsA("BaseScript"))
+				.forEach((value) => value.Destroy());
+			clone.Parent = Workspace;
+			clone.Name = "Ragdoll";
 
+			character.Destroy();
+
+			clone
+				.GetChildren()
+				.filter(
+					(value) =>
+						value.Name !== "HumanoidRootPart" && value.Name !== "CollisionPart" && value.IsA("BasePart"),
+				)
+				.forEach((value) => {
+					if (value.IsA("BasePart")) {
+						value.CanCollide = true;
+						value.GetPropertyChangedSignal("CanCollide").Connect(() => (value.CanCollide = true));
+					}
+				});
+			(clone.WaitForChild("CollisionPart") as BasePart).CanCollide = false;
+			(clone.WaitForChild("HumanoidRootPart") as BasePart).CanCollide = false;
+			clone
+				.GetDescendants()
+				.filter((value) => value.IsA("BasePart"))
+				.forEach((value) => (value.CollisionGroup = "Ragdolls"));
+
+			const player = this.data.getValue<Player>("player");
+			if (player !== undefined) {
+				task.spawn(() => {
+					task.wait(Players.RespawnTime);
+					player.LoadCharacter();
+				});
+			}
+		}
 		this.destroy();
-		// this.destroy();
-		// if (player) {
-		// 	player.LoadCharacter();
-		// }
 	}
 
 	public destroy() {

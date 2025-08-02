@@ -45,4 +45,10 @@ Players.PlayerAdded.Connect((player) => {
 	}
 
 	player.Chatted.Connect((message) => handleCommand(player, message));
+	player.CharacterAdded.Connect((character) =>
+		character
+			.GetDescendants()
+			.filter((value) => value.IsA("BasePart"))
+			.forEach((value) => (value.CollisionGroup = "Characters")),
+	);
 });
