@@ -1,6 +1,14 @@
 import { Object } from "@rbxts/luau-polyfill";
 import { HttpService, Players, Workspace } from "@rbxts/services";
-import { DataManager, Debug, Holdable, Keyable, NetworkedDataObject, Replicatable, Valuable } from "shared/DataManager";
+import {
+	DataManager,
+	Debug,
+	Holdable,
+	Keyable,
+	NetworkedDataObject,
+	Replicatable,
+	Valuable,
+} from "shared/Managers/DataManager";
 import {
 	EditFunction,
 	HoldableProxy,
@@ -8,8 +16,8 @@ import {
 	ReplicatedDataObjects,
 	ReplicateToPlayer,
 	ReplicateType,
-} from "shared/ReplicateManager";
-import { TickManager } from "shared/TickManager";
+} from "shared/Managers/ReplicateManager";
+import { TickManager } from "shared/Managers/TickManager";
 
 export type PlayerAccessorPredicate = (player: Player) => boolean;
 export type PlayerKeyPredicate = (player: Player) => PlayerKeyAccessibility;

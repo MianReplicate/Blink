@@ -1,13 +1,13 @@
 import { Array, ArrayUtilities, Object, ObjectUtilities } from "@rbxts/luau-polyfill";
 import { CollectionService, Workspace } from "@rbxts/services";
-import { DataManager, Debug, Holdable, Keyable, NetworkedDataObject, Valuable } from "shared/DataManager";
+import { DataManager, Debug, Holdable, Keyable, NetworkedDataObject, Valuable } from "shared/Managers/DataManager";
 import {
 	EditFunction,
 	ReplicatedDataObjects,
 	ReplicateEvent,
 	SendServerNewValue,
 	UnreliableReplicateEvent,
-} from "shared/ReplicateManager";
+} from "shared/Managers/ReplicateManager";
 
 const AwaitingToSync: Map<string, { tags: ReadonlyArray<string>; storage: Map<Keyable, Valuable> }> = new Map();
 

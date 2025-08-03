@@ -1,5 +1,5 @@
 import { UserInputService } from "@rbxts/services";
-import { ActionType, RoleAction } from "shared/RoleActions";
+import { ActionType, RoleAction } from "shared/Types";
 
 export namespace ActionManager {
 	export function callAction(actionName: ActionType) {

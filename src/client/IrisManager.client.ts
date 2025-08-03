@@ -1,10 +1,10 @@
 import Iris from "@rbxts/iris";
 import { WindowArguments } from "@rbxts/iris/src/lib/widgets/window";
-import { DataManager, Holdable, Keyable, Valuable } from "shared/DataManager";
+import { DataManager, Holdable, Keyable, Valuable } from "shared/Managers/DataManager";
 import { Players, UserInputService } from "@rbxts/services";
 import { ClientDataManager, ClientDataObject } from "./ClientDataObject";
 import { Object, String } from "@rbxts/luau-polyfill";
-import { EditFunction, HoldableProxy } from "shared/ReplicateManager";
+import { EditFunction, HoldableProxy } from "shared/Managers/ReplicateManager";
 
 ClientDataManager.Init();
 

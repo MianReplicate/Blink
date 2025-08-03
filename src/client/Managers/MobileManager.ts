@@ -1,15 +1,17 @@
 import { UserInputService } from "@rbxts/services";
 
-const UI: Array<Frame> = new Array();
+const UI: Array<GuiObject> = new Array();
 
 function TouchChanged() {
 	const touchEnabled = UserInputService.TouchEnabled;
-	UI.forEach((frame) => (frame.Visible = touchEnabled));
+	UI.forEach((object) => (object.Visible = touchEnabled));
 }
 
-export function AddTouchUI(ui: Frame) {
-	UI.push(ui);
-	TouchChanged();
+export namespace MobileManager {
+	export function add(ui: GuiObject) {
+		UI.push(ui);
+		TouchChanged();
+	}
 }
 
 UserInputService.GetPropertyChangedSignal("TouchEnabled").Connect(TouchChanged);

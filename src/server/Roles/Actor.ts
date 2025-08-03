@@ -1,5 +1,5 @@
-import { ServerDataObject } from "server/ServerDataObject";
-import { Replicatable } from "shared/DataManager";
+import { PlayerKeyPredicate, ServerDataObject } from "server/ServerDataObject";
+import { Replicatable } from "shared/Managers/DataManager";
 
 export abstract class Actor implements Replicatable {
 	replicatable: boolean = false;
@@ -13,6 +13,10 @@ export abstract class Actor implements Replicatable {
 			.GetDescendants()
 			.filter((value) => value.IsA("BasePart"))
 			.forEach((value) => (value.CollisionGroup = "Characters"));
+	}
+
+	public setPlayer(player: Player): void {
+		this.data.setValue("player", player);
 	}
 
 	public die(): void {

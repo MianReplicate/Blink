@@ -1,7 +1,8 @@
 import { Players, ReplicatedStorage } from "@rbxts/services";
 import { Util } from "shared/Util";
-import { ActorType, GameHelper } from "./GameHelper";
-import { TickManager } from "shared/TickManager";
+import { ActorManager } from "./Managers/ActorManager";
+import { TickManager } from "shared/Managers/TickManager";
+import { ActorType } from "shared/Types";
 
 type Command = (player: Player, args: string[]) => unknown;
 
@@ -14,7 +15,7 @@ commands.set("becomerole", (player, args) => {
 	const optionalPlayerName = args[1];
 	player = (optionalPlayerName && Util.getPlayerFromName(optionalPlayerName)) || player;
 
-	GameHelper.changeIntoRole("survivor".match(role)[0] ? ActorType.Survivor : ActorType.Survivor, player);
+	ActorManager.changeIntoRole("survivor".match(role)[0] ? ActorType.Survivor : ActorType.Survivor, player);
 });
 
 commands.set("tick", (player, args) => {

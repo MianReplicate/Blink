@@ -1,7 +1,7 @@
-import { GameHelper } from "server/GameHelper";
-import { ActionType, RoleAction } from "shared/RoleActions";
-import { Actor } from "./Roles/Actor";
-import { Survivor } from "./Roles/Survivor";
+import { ActorManager } from "server/Managers/ActorManager";
+import { Actor } from "../Roles/Actor";
+import { Survivor } from "../Roles/Survivor";
+import { RoleAction } from "shared/Types";
 
 abstract class Action {
 	protected readonly role: Actor;
@@ -33,10 +33,14 @@ namespace Actions {
 	}
 }
 
+export namespace ActionManager {
+	export function init(): undefined {}
+}
+
 RoleAction.OnServerInvoke = (player, action: unknown) => {
 	const character = player.Character;
 	if (character) {
-		const role = GameHelper.getRoleData(character);
+		const role = ActorManager.getRoleData(character);
 		if (role) {
 			const actionClass = new Actions[action as keyof typeof Actions](role);
 			return actionClass.execute();

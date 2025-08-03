@@ -1,10 +1,10 @@
 import { Lighting, Players, ReplicatedStorage, TweenService, UserInputService } from "@rbxts/services";
-import { ActionManager } from "./ActionManager";
-import { ActionType } from "shared/RoleActions";
 import { ClientDataObject } from "./ClientDataObject";
-import { AddTouchUI } from "./TouchManager";
+import { MobileManager } from "./Managers/MobileManager";
+import { ControlManager } from "./Managers/ControlManager";
+import { Object } from "@rbxts/luau-polyfill";
+import { ActorType } from "shared/Types";
 
-type Roles = "Survivor" | "Angel";
 type LightingType = "Lobby" | "Round";
 
 const ClientUI = ReplicatedStorage.Client;
@@ -29,11 +29,10 @@ function setLightingType(lightingType: LightingType) {
 	}
 }
 
-const ActionMap = new Map<Enum.KeyCode, ActionType>();
-ActionMap.set(Enum.KeyCode.Q, "Blink");
-ActionMap.set(Enum.KeyCode.Space, "Strain");
-ActionMap.set(Enum.KeyCode.ButtonB, "Blink");
-ActionMap.set(Enum.KeyCode.ButtonA, "Strain");
+ControlManager.bind(Enum.KeyCode.Q, "Blink");
+ControlManager.bind(Enum.KeyCode.Space, "Strain");
+ControlManager.bind(Enum.KeyCode.ButtonB, "Blink");
+ControlManager.bind(Enum.KeyCode.ButtonA, "Strain");
 
 function resetUI() {
 	activeRoundUI?.Destroy();
@@ -48,7 +47,7 @@ function onRoleDelete() {
 	setLightingType("Lobby");
 }
 
-function onRoleCreate(role: Roles, roleData: ClientDataObject<Instance>) {
+function onRoleCreate(role: ActorType, roleData: ClientDataObject<Instance>) {
 	resetUI();
 
 	activeRoundUI = ClientUI.RoundUI.Clone();
@@ -145,37 +144,31 @@ function onRoleCreate(role: Roles, roleData: ClientDataObject<Instance>) {
 			},
 		});
 
-		AddTouchUI(MobileList);
-		MobileList.ManualBlink.TouchTap.Connect(() => ActionManager.callAction("Blink"));
-		MobileList.Spam.TouchTap.Connect(() => ActionManager.callAction("Strain"));
+		MobileManager.add(MobileList);
+		ControlManager.bind(MobileList.ManualBlink, "Blink");
+		ControlManager.bind(MobileList.Spam, "Strain");
 	}
 
 	activeRoundUI.Parent = Player.FindFirstChildOfClass("PlayerGui");
 }
 
-const SurvivorList = ClientDataObject.waitFor<string>("List", ["Survivor"]);
-// const AngelList = ClientDataObject.waitFor<string>("List", ["Angel"]);
+const actorTypes = Object.values(ActorType);
 
-SurvivorList?.addListener({
-	callback: (key, value, oldValue) => {
-		const character = Player.Character;
-		if (character !== undefined && key === character.GetAttribute("uuid"))
-			if (value === undefined) {
-				onRoleDelete();
-			} else {
-				onRoleCreate(
-					"Survivor",
-					ClientDataObject.waitFor<Instance>(character, ["Survivor"]) as ClientDataObject<Instance>,
-				);
+actorTypes.forEach((actorType) => {
+	const list = ClientDataObject.waitFor<string>("List", ["Survivor"]);
+	list?.addListener({
+		callback: (key, value, oldValue) => {
+			const character = Player.Character;
+			if (character !== undefined && key === character.GetAttribute("uuid")) {
+				if (value === undefined) {
+					onRoleDelete();
+				} else {
+					onRoleCreate(
+						actorType,
+						ClientDataObject.waitFor<Instance>(character, [actorType]) as ClientDataObject<Instance>,
+					);
+				}
 			}
-	},
-});
-
-UserInputService.InputBegan.Connect((input, gpe) => {
-	if (!gpe) {
-		const actionType = ActionMap.get(input.KeyCode);
-		if (actionType !== undefined) {
-			ActionManager.callAction(actionType);
-		}
-	}
+		},
+	});
 });

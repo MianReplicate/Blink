@@ -11,6 +11,8 @@ import { Actor } from "./Actor";
 import { Array } from "@rbxts/luau-polyfill";
 import { Util } from "shared/Util";
 import EasyRagdoll from "shared/EasyRagdoll";
+import RagdollModule from "shared/RagdollModule";
+import RagdollModuleConstructor from "shared/RagdollModule";
 
 export const SurvivorList = ServerDataObject.getOrConstruct<string>("List", ["Survivor"]);
 
@@ -20,17 +22,7 @@ SurvivorList.setFutureCriteriaForKeys(() => {
 });
 
 export class Survivor extends Actor {
-	public static getOrCreate(character: Model, player?: Player): Survivor {
-		let survivor = SurvivorList.getValue<Survivor>(character);
-		if (survivor !== undefined) return survivor;
-
-		survivor = new Survivor(character, player);
-		SurvivorList.setValue(character, survivor);
-
-		return survivor;
-	}
-
-	private constructor(character: Instance, player?: Player) {
+	public constructor(character: Model) {
 		super(ServerDataObject.getOrConstruct<Instance>(character, ["Survivor"]));
 
 		const humanoid = character.WaitForChild("Humanoid") as Humanoid;
@@ -49,21 +41,21 @@ export class Survivor extends Actor {
 		this.data.setValue("blinking", undefined);
 		this.data.setValue("blinkTrack", animator.LoadAnimation(ReplicatedStorage.SurvivorAnimations.Blink.Clone()));
 
-		if (player !== undefined) {
-			this.data.setValue("player", player);
-
-			const predicate: PlayerKeyPredicate = (_player: Player) => {
-				return { canSeeKey: _player.UserId === player.UserId, canSeeValue: true, canEditValue: false };
-			};
-
-			this.data.setPlayerCriteriaForKeys(["blinking", "blinkMeter", "dead", "maxBlinkMeter"], predicate);
-			this.data.setCriteriaForDataObject((_player) => _player.UserId === player.UserId);
-		}
-
 		character.Archivable = true;
 
 		this.defaultValues();
 		this.queueStraining(true);
+	}
+
+	public override setPlayer(player: Player): void {
+		super.setPlayer(player);
+
+		const predicate: PlayerKeyPredicate = (_player: Player) => {
+			return { canSeeKey: _player.UserId === player.UserId, canSeeValue: true, canEditValue: false };
+		};
+
+		this.data.setPlayerCriteriaForKeys(["blinking", "blinkMeter", "dead", "maxBlinkMeter"], predicate);
+		this.data.setCriteriaForDataObject((_player) => _player.UserId === player.UserId);
 	}
 
 	public defaultValues() {
@@ -159,7 +151,10 @@ export class Survivor extends Actor {
 
 			character.Destroy();
 
-			EasyRagdoll.SetRagdoll(clone, true, false);
+			const ragdoll = new RagdollModule(clone, false);
+			ragdoll.ragdoll((clone.FindFirstChild("HumanoidRootPart") as BasePart).CFrame.LookVector);
+
+			// EasyRagdoll.SetRagdoll(clone, true, false);
 			// clone
 			// 	.GetChildren()
 			// 	.filter(
