@@ -1,6 +1,8 @@
 import { ActorManager } from "./Managers/ActorManager";
 import { TickManager } from "shared/Managers/TickManager";
 import { ActionManager } from "./Managers/ActionManager";
+import { Survivor } from "./Roles/Survivor";
+import { ActorType } from "shared/Types";
 
 ActionManager.init();
 
@@ -8,6 +10,6 @@ ActionManager.init();
 
 // TickManager.addTickable("Angels");
 TickManager.addTickable("[Survivors]", (deltaTime) =>
-	ActorManager.getSurvivors().forEach((survivor) => survivor.tick()),
+	ActorManager.getActorsOf<Survivor>(ActorType.Survivor).forEach((survivor) => survivor.tick()),
 );
 // TickManager.addTickable("Lights");

@@ -1,10 +1,20 @@
 import { Math } from "@rbxts/luau-polyfill";
-import { Players, ReplicatedStorage, RunService } from "@rbxts/services";
+import { CollectionService, Players, ReplicatedStorage, RunService } from "@rbxts/services";
 
 const Settings = ReplicatedStorage.WaitForChild("Settings");
 const GroupId = 10874599;
 
 export namespace Util {
+	export function getInstanceFromUUID(uuid: string) {
+		return CollectionService.GetTagged(uuid)[0];
+	}
+
+	export function getRandomChild<T extends Instance>(instance: Instance): T {
+		const children = instance.GetChildren();
+
+		return children[math.random(0, children.size() - 1)] as T;
+	}
+
 	export function isAdmin(player: Player) {
 		return RunService.IsStudio() || player.GetRankInGroup(GroupId) >= 254 || Settings.GetAttribute("Testing");
 	}

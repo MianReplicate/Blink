@@ -1,10 +1,14 @@
 interface ReplicatedStorage extends Instance {
 	TS: Folder & {
-		DataManager: ModuleScript;
-		TickManager: ModuleScript;
-		RoleActions: ModuleScript;
+		Types: ModuleScript;
+		RagdollModule: ModuleScript;
+		EasyRagdoll: ModuleScript;
 		Util: ModuleScript;
-		ReplicateManager: ModuleScript;
+		Managers: Folder & {
+			DataManager: ModuleScript;
+			TickManager: ModuleScript;
+			ReplicateManager: ModuleScript;
+		};
 	};
 	Settings: Configuration;
 	SurvivorAnimations: Folder & {
@@ -12,12 +16,10 @@ interface ReplicatedStorage extends Instance {
 		Blink: Animation;
 	};
 	Client: Folder & {
-		Settings: Configuration;
 		Highlights: Folder & {
 			Survivor: Highlight;
 			Angel: Highlight;
 		};
-		AngelLight: PointLight;
 		RoundUI: ScreenGui & {
 			Survivor: Frame & {
 				Blink: Frame & {
@@ -49,6 +51,14 @@ interface ReplicatedStorage extends Instance {
 				DeathScreen: Frame;
 			};
 		};
+		DeathSounds: Folder & {
+			bonebreak03: Sound;
+			bonebreak04: Sound;
+			Bonebreak02: Sound;
+			BoneBreak01: Sound;
+		};
+		AngelLight: PointLight;
+		Settings: Configuration;
 	};
 	rbxts_include: Folder & {
 		RuntimeLib: ModuleScript;

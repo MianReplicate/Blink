@@ -5,10 +5,11 @@ type Tickable = (deltaTime: number) => void;
 
 let ticking = true;
 
-export namespace TickManager {
-	const ToTick = new Map<string, Tickable>();
-	export let ToTickEntries = new Array<[string, Tickable]>();
+const ToTick = new Map<string, Tickable>();
+const TempToTick = new Array<Tickable>();
+let ToTickEntries = new Array<[string, Tickable]>();
 
+export namespace TickManager {
 	export function addTickable(name: string, tickable: Tickable) {
 		ToTick.set(name, tickable);
 		ToTickEntries = Object.entries(ToTick);
@@ -19,13 +20,20 @@ export namespace TickManager {
 	export function setTicking(start: boolean) {
 		ticking = start;
 	}
+
+	export function runNextTick(toRun: Tickable) {
+		TempToTick.push(toRun);
+	}
 }
 
 RunService.Heartbeat.Connect((deltaTime) => {
 	// end is highest priority (runs first), beginning is lowest priority (runs last)
 	if (ticking) {
-		for (let i = TickManager.ToTickEntries.size() - 1; i >= 0; i--) {
-			TickManager.ToTickEntries[i][1](deltaTime);
+		for (let i = ToTickEntries.size() - 1; i >= 0; i--) {
+			ToTickEntries[i][1](deltaTime);
 		}
+
+		TempToTick.forEach((tick) => tick(deltaTime));
+		TempToTick.clear();
 	}
 });

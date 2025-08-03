@@ -1,7 +1,7 @@
 import { PhysicsService } from "@rbxts/services";
 import { DataManager, Keyable } from "../../shared/Managers/DataManager";
 import { Actor } from "../Roles/Actor";
-import { Survivor, SurvivorList } from "../Roles/Survivor";
+import { Survivor } from "../Roles/Survivor";
 import { ServerDataObject } from "../ServerDataObject";
 import { Object, String } from "@rbxts/luau-polyfill";
 import { ActorType } from "shared/Types";
@@ -20,12 +20,12 @@ export const CharacterGroup = PhysicsService.RegisterCollisionGroup("Characters"
 PhysicsService.CollisionGroupSetCollidable("Ragdolls", "Characters", false);
 
 export namespace ActorManager {
-	export function getSurvivors() {
-		return SurvivorList.getStorage() as Map<Keyable, Survivor>;
+	export function getActorsOf<T extends Actor>(actorType: ActorType) {
+		return ServerDataObject.getOrConstruct<string>("List", [actorType]).getStorage() as Map<Keyable, T>;
 	}
 
 	export function getRoleData(character: Model): Actor | undefined {
-		const survivor = getSurvivors().get(character);
+		const survivor = getActorsOf<Survivor>(ActorType.Survivor).get(character);
 
 		return survivor;
 	}

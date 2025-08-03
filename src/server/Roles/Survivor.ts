@@ -13,17 +13,12 @@ import { Util } from "shared/Util";
 import EasyRagdoll from "shared/EasyRagdoll";
 import RagdollModule from "shared/RagdollModule";
 import RagdollModuleConstructor from "shared/RagdollModule";
-
-export const SurvivorList = ServerDataObject.getOrConstruct<string>("List", ["Survivor"]);
-
-SurvivorList.setCriteriaForDataObject(() => true);
-SurvivorList.setFutureCriteriaForKeys(() => {
-	return { canSeeKey: true, canSeeValue: false, canEditValue: false };
-});
+import { TickManager } from "shared/Managers/TickManager";
+import { ActorType } from "shared/Types";
 
 export class Survivor extends Actor {
 	public constructor(character: Model) {
-		super(ServerDataObject.getOrConstruct<Instance>(character, ["Survivor"]));
+		super(ServerDataObject.getOrConstruct<Instance>(character, ["Survivor"]), ActorType.Survivor);
 
 		const humanoid = character.WaitForChild("Humanoid") as Humanoid;
 		let animator = humanoid.FindFirstChild("Animator") as Animator;
@@ -151,8 +146,8 @@ export class Survivor extends Actor {
 
 			character.Destroy();
 
-			const ragdoll = new RagdollModule(clone, false);
-			ragdoll.ragdoll((clone.FindFirstChild("HumanoidRootPart") as BasePart).CFrame.LookVector);
+			// const ragdoll = new RagdollModule(clone, false);
+			// ragdoll.ragdoll((clone.FindFirstChild("HumanoidRootPart") as BasePart).CFrame.LookVector);
 
 			// EasyRagdoll.SetRagdoll(clone, true, false);
 			// clone
@@ -174,6 +169,10 @@ export class Survivor extends Actor {
 				.filter((value) => value.IsA("BasePart"))
 				.forEach((value) => (value.CollisionGroup = "Ragdolls"));
 
+			const death = Util.getRandomChild<Sound>(ReplicatedStorage.Client.DeathSounds).Clone();
+			death.Parent = clone.FindFirstChild("HumanoidRootPart");
+			death.Play();
+
 			const player = this.data.getValue<Player>("player");
 			if (player !== undefined) {
 				task.spawn(() => {
@@ -182,12 +181,6 @@ export class Survivor extends Actor {
 				});
 			}
 		}
-		this.destroy();
-	}
-
-	public destroy() {
-		SurvivorList.removeKey(this.getData().getHolder());
-		super.destroy();
 	}
 
 	public tick() {

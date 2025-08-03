@@ -27,7 +27,7 @@ export interface Replicatable {
 	replicatable: boolean;
 }
 
-export const toDebug = false;
+export const toDebug = true;
 
 // export type ReplicatedKey = {
 // 	holder: Holdable;
@@ -198,7 +198,7 @@ class DataObject<T extends Holdable> {
 		const oldValue = this.storage.get(key);
 		this.storage.delete(key);
 
-		this.callListeners(key, "deleted", oldValue);
+		this.callListeners(key, undefined, oldValue);
 	}
 
 	public addValue(value: Valuable) {

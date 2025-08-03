@@ -4,30 +4,14 @@ import { MobileManager } from "./Managers/MobileManager";
 import { ControlManager } from "./Managers/ControlManager";
 import { Object } from "@rbxts/luau-polyfill";
 import { ActorType } from "shared/Types";
+import { LightingManager } from "./Managers/LightingManager";
+import { Util } from "shared/Util";
 
-type LightingType = "Lobby" | "Round";
-
-const ClientUI = ReplicatedStorage.Client;
+const Client = ReplicatedStorage.Client;
 const SurvivorVision = Lighting.SurvivorVision;
 const SurvivorBlur = Lighting.SurvivorBlur;
 const Player: Player = Players.LocalPlayer;
 let activeRoundUI: typeof ReplicatedStorage.Client.RoundUI | undefined = undefined;
-
-const lobbyRecord = {
-	Brightness: 1.2,
-} as const;
-
-const roundRecord = {
-	Brightness: 0,
-} as const;
-
-function setLightingType(lightingType: LightingType) {
-	const record = lightingType === "Lobby" ? lobbyRecord : roundRecord;
-
-	for (const [key, value] of pairs(record)) {
-		Lighting[key] = value;
-	}
-}
 
 ControlManager.bind(Enum.KeyCode.Q, "Blink");
 ControlManager.bind(Enum.KeyCode.Space, "Strain");
@@ -44,18 +28,18 @@ function resetUI() {
 
 function onRoleDelete() {
 	resetUI();
-	setLightingType("Lobby");
+	LightingManager.setLightingType("Lobby");
 }
 
 function onRoleCreate(role: ActorType, roleData: ClientDataObject<Instance>) {
 	resetUI();
 
-	activeRoundUI = ClientUI.RoundUI.Clone();
+	activeRoundUI = Client.RoundUI.Clone();
 	activeRoundUI.Common.Visible = true;
 
 	Player.CameraMode = Enum.CameraMode.LockFirstPerson;
 
-	setLightingType("Round");
+	LightingManager.setLightingType("Round");
 
 	if (role === "Survivor") {
 		activeRoundUI.Survivor.Visible = true;
@@ -144,6 +128,15 @@ function onRoleCreate(role: ActorType, roleData: ClientDataObject<Instance>) {
 			},
 		});
 
+		roleData.addListener<boolean>({
+			key: "dead",
+			callback: (key, value, oldValue) => {
+				if (value) {
+					MainFrame.BackgroundTransparency = 0;
+				}
+			},
+		});
+
 		MobileManager.add(MobileList);
 		ControlManager.bind(MobileList.ManualBlink, "Blink");
 		ControlManager.bind(MobileList.Spam, "Strain");
@@ -153,20 +146,32 @@ function onRoleCreate(role: ActorType, roleData: ClientDataObject<Instance>) {
 }
 
 const actorTypes = Object.values(ActorType);
+const handleTypes: Map<ActorType, (character: Model) => undefined> = new Map();
+
+handleTypes.set(ActorType.Survivor, (character) => {
+	(character.WaitForChild("HumanoidRootPart").WaitForChild("Died") as Sound).Destroy();
+});
 
 actorTypes.forEach((actorType) => {
-	const list = ClientDataObject.waitFor<string>("List", ["Survivor"]);
-	list?.addListener({
+	const list = ClientDataObject.waitFor<string>("List", [actorType]);
+	list?.addListener<string>({
 		callback: (key, value, oldValue) => {
-			const character = Player.Character;
-			if (character !== undefined && key === character.GetAttribute("uuid")) {
-				if (value === undefined) {
-					onRoleDelete();
-				} else {
-					onRoleCreate(
-						actorType,
-						ClientDataObject.waitFor<Instance>(character, [actorType]) as ClientDataObject<Instance>,
-					);
+			const character = Util.getInstanceFromUUID(key as string) as Model;
+
+			if (character !== undefined) {
+				if (value !== undefined) {
+					handleTypes.get(actorType)?.(character);
+				}
+
+				if (character === Player.Character) {
+					if (value === undefined) {
+						onRoleDelete();
+					} else {
+						onRoleCreate(
+							actorType,
+							ClientDataObject.waitFor<Instance>(character, [actorType]) as ClientDataObject<Instance>,
+						);
+					}
 				}
 			}
 		},

@@ -1,12 +1,16 @@
 import { PlayerKeyPredicate, ServerDataObject } from "server/ServerDataObject";
 import { Replicatable } from "shared/Managers/DataManager";
+import { TickManager } from "shared/Managers/TickManager";
+import { ActorType } from "shared/Types";
 
 export abstract class Actor implements Replicatable {
 	replicatable: boolean = false;
 	protected data: ServerDataObject<Instance>;
+	private actorType: ActorType;
 
-	protected constructor(data: ServerDataObject<Instance>) {
+	protected constructor(data: ServerDataObject<Instance>, actorType: ActorType) {
 		this.data = data;
+		this.actorType = actorType;
 
 		this.data
 			.getHolder()
@@ -29,8 +33,10 @@ export abstract class Actor implements Replicatable {
 
 	public tick(): void {
 		const humanoid = this.data.getHolder().FindFirstChild("Humanoid") as Humanoid;
-		if (humanoid === undefined) this.destroy();
-		else if (humanoid.Health <= 0) this.die();
+		if (humanoid === undefined) {
+			ServerDataObject.getOrConstruct<string>("List", [this.actorType]).removeKey(this.data.getHolder());
+			TickManager.runNextTick(() => this.destroy());
+		} else if (humanoid.Health <= 0) this.die();
 	}
 
 	public getData() {
