@@ -27,7 +27,7 @@ export interface Replicatable {
 	replicatable: boolean;
 }
 
-export const toDebug = true;
+export const toDebug = false;
 
 // export type ReplicatedKey = {
 // 	holder: Holdable;
@@ -271,6 +271,15 @@ class DataObject<T extends Holdable> {
 	 */
 	public getStorage() {
 		return this.storage;
+	}
+
+	public wipeStorage(destroyInstances: boolean) {
+		this.storage.forEach((value, key) => {
+			this.removeKey(key);
+			if (destroyInstances && typeIs(value, "Instance") && value.Parent !== undefined) {
+				value.Destroy();
+			}
+		});
 	}
 }
 

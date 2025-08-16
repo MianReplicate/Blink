@@ -10,15 +10,13 @@ import { PlayerKeyPredicate, ServerDataObject } from "../ServerDataObject";
 import { Actor } from "./Actor";
 import { Array } from "@rbxts/luau-polyfill";
 import { Util } from "shared/Util";
-import EasyRagdoll from "shared/EasyRagdoll";
-import RagdollModule from "shared/RagdollModule";
-import RagdollModuleConstructor from "shared/RagdollModule";
 import { TickManager } from "shared/Managers/TickManager";
 import { ActorType } from "shared/Types";
+import { ObjectManager } from "server/Managers/ObjectManager";
 
 export class Survivor extends Actor {
 	public constructor(character: Model) {
-		super(ServerDataObject.getOrConstruct<Instance>(character, ["Survivor"]), ActorType.Survivor);
+		super(ServerDataObject.getOrConstruct<Model>(character, ["Survivor"]), ActorType.Survivor);
 
 		const humanoid = character.WaitForChild("Humanoid") as Humanoid;
 		let animator = humanoid.FindFirstChild("Animator") as Animator;
@@ -56,7 +54,7 @@ export class Survivor extends Actor {
 	public defaultValues() {
 		this.data.setValue("maxBlinkMeter", 100);
 		this.data.setValue("blinkMeter", this.data.getValue("maxBlinkMeter"));
-		this.data.setValue("blinkResetTimer", 0.3);
+		// this.data.setValue("blinkResetTimer", 0.3);
 
 		this.data.setValue("drainAmount", 10);
 
@@ -136,55 +134,16 @@ export class Survivor extends Actor {
 		super.die();
 		const character = this.getData().getHolder();
 		if (character !== undefined) {
-			const clone = character.Clone() as Model;
-			clone
-				.GetDescendants()
-				.filter((value) => value.IsA("BaseScript"))
-				.forEach((value) => value.Destroy());
-			clone.Parent = Workspace;
-			clone.Name = "Ragdoll";
-
-			character.Destroy();
-
-			// const ragdoll = new RagdollModule(clone, false);
-			// ragdoll.ragdoll((clone.FindFirstChild("HumanoidRootPart") as BasePart).CFrame.LookVector);
-
-			// EasyRagdoll.SetRagdoll(clone, true, false);
-			// clone
-			// 	.GetChildren()
-			// 	.filter(
-			// 		(value) =>
-			// 			value.Name !== "HumanoidRootPart" && value.Name !== "CollisionPart" && value.IsA("BasePart"),
-			// 	)
-			// 	.forEach((value) => {
-			// 		if (value.IsA("BasePart")) {
-			// 			value.CanCollide = true;
-			// 			value.GetPropertyChangedSignal("CanCollide").Connect(() => (value.CanCollide = true));
-			// 		}
-			// 	});
-			// (clone.WaitForChild("CollisionPart") as BasePart).CanCollide = false;
-			// (clone.WaitForChild("HumanoidRootPart") as BasePart).CanCollide = false;
-			clone
-				.GetDescendants()
-				.filter((value) => value.IsA("BasePart"))
-				.forEach((value) => (value.CollisionGroup = "Ragdolls"));
+			const clone = ObjectManager.createRagdoll(character);
 
 			const death = Util.getRandomChild<Sound>(ReplicatedStorage.Client.DeathSounds).Clone();
 			death.Parent = clone.FindFirstChild("HumanoidRootPart");
 			death.Play();
-
-			const player = this.data.getValue<Player>("player");
-			if (player !== undefined) {
-				task.spawn(() => {
-					task.wait(Players.RespawnTime);
-					player.LoadCharacter();
-				});
-			}
 		}
 	}
 
-	public tick() {
-		super.tick();
+	public tick(dt: number) {
+		super.tick(dt);
 
 		if (!this.isAlive()) return;
 

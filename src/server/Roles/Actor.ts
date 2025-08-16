@@ -1,14 +1,16 @@
+import { Players } from "@rbxts/services";
+import { ObjectManager } from "server/Managers/ObjectManager";
 import { PlayerKeyPredicate, ServerDataObject } from "server/ServerDataObject";
 import { Replicatable } from "shared/Managers/DataManager";
 import { TickManager } from "shared/Managers/TickManager";
-import { ActorType } from "shared/Types";
+import { ActorType, RoleRemoval } from "shared/Types";
 
 export abstract class Actor implements Replicatable {
 	replicatable: boolean = false;
-	protected data: ServerDataObject<Instance>;
+	protected data: ServerDataObject<Model>;
 	private actorType: ActorType;
 
-	protected constructor(data: ServerDataObject<Instance>, actorType: ActorType) {
+	protected constructor(data: ServerDataObject<Model>, actorType: ActorType) {
 		this.data = data;
 		this.actorType = actorType;
 
@@ -25,13 +27,22 @@ export abstract class Actor implements Replicatable {
 
 	public die(): void {
 		this.data.setValue("dead", true);
+
+		const player = this.data.getValue<Player>("player");
+		if (player !== undefined) {
+			task.spawn(() => {
+				task.wait(Players.RespawnTime);
+				player.LoadCharacter();
+				RoleRemoval.FireClient(player);
+			});
+		}
 	}
 
 	public destroy(): void {
 		this.data.destroy();
 	}
 
-	public tick(): void {
+	public tick(dt: number): void {
 		const humanoid = this.data.getHolder().FindFirstChild("Humanoid") as Humanoid;
 		if (humanoid === undefined) {
 			ServerDataObject.getOrConstruct<string>("List", [this.actorType]).removeKey(this.data.getHolder());

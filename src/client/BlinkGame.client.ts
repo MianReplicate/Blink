@@ -3,7 +3,7 @@ import { ClientDataObject } from "./ClientDataObject";
 import { MobileManager } from "./Managers/MobileManager";
 import { ControlManager } from "./Managers/ControlManager";
 import { Object } from "@rbxts/luau-polyfill";
-import { ActorType } from "shared/Types";
+import { ActorType, RoleRemoval } from "shared/Types";
 import { LightingManager } from "./Managers/LightingManager";
 import { Util } from "shared/Util";
 
@@ -164,9 +164,7 @@ actorTypes.forEach((actorType) => {
 				}
 
 				if (character === Player.Character) {
-					if (value === undefined) {
-						onRoleDelete();
-					} else {
+					if (value !== undefined) {
 						onRoleCreate(
 							actorType,
 							ClientDataObject.waitFor<Instance>(character, [actorType]) as ClientDataObject<Instance>,
@@ -177,3 +175,5 @@ actorTypes.forEach((actorType) => {
 		},
 	});
 });
+
+RoleRemoval.OnClientEvent.Connect(onRoleDelete);

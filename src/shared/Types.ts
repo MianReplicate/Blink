@@ -5,6 +5,11 @@ export const RoleAction: RemoteFunction =
 RoleAction.Name = "RoleAction";
 RoleAction.Parent = ReplicatedStorage;
 
+export const RoleRemoval: RemoteEvent =
+	(ReplicatedStorage.FindFirstChild("RoleRemoval") as RemoteEvent) || new Instance("RemoteEvent");
+RoleRemoval.Name = "RoleRemoval";
+RoleRemoval.Parent = ReplicatedStorage;
+
 export enum ActorType {
 	Survivor = "Survivor",
 	// Angel = "Angel",

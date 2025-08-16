@@ -9,7 +9,7 @@ ActionManager.init();
 // GameLibrary.createOrGetSurvivor(Workspace.Baseplate);
 
 // TickManager.addTickable("Angels");
-TickManager.addTickable("[Survivors]", (deltaTime) =>
-	ActorManager.getActorsOf<Survivor>(ActorType.Survivor).forEach((survivor) => survivor.tick()),
+TickManager.addTickable("[Survivors]", (dt) =>
+	ActorManager.getActorsOf<Survivor>(ActorType.Survivor).forEach((survivor) => survivor.tick(dt)),
 );
 // TickManager.addTickable("Lights");
