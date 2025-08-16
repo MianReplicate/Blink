@@ -29,6 +29,16 @@ function resetUI() {
 function onRoleDelete() {
 	resetUI();
 	LightingManager.setLightingType("Lobby");
+	actorTypes.forEach((actorType) => {
+		const cleanUp = handleTypes.get(actorType)?.[1];
+		if (cleanUp !== undefined) {
+			const list = ClientDataObject.waitFor<string>("List", [actorType]);
+			list?.getStorage().forEach((value, key) => {
+				const character = Util.getInstanceFromUUID(key as string) as Model;
+				cleanUp(character);
+			});
+		}
+	});
 }
 
 function onRoleCreate(role: ActorType, roleData: ClientDataObject<Instance>) {
@@ -146,11 +156,16 @@ function onRoleCreate(role: ActorType, roleData: ClientDataObject<Instance>) {
 }
 
 const actorTypes = Object.values(ActorType);
-const handleTypes: Map<ActorType, (character: Model) => undefined> = new Map();
 
-handleTypes.set(ActorType.Survivor, (character) => {
-	(character.WaitForChild("HumanoidRootPart").WaitForChild("Died") as Sound).Destroy();
-});
+// first function is for setting up, second function is for clean up (remove highlights?) if the player dies
+const handleTypes: Map<ActorType, [(character: Model) => undefined, (character: Model) => undefined]> = new Map();
+
+handleTypes.set(ActorType.Survivor, [
+	(character) => {
+		(character.WaitForChild("HumanoidRootPart").WaitForChild("Died") as Sound).Destroy();
+	},
+	(character) => {},
+]);
 
 actorTypes.forEach((actorType) => {
 	const list = ClientDataObject.waitFor<string>("List", [actorType]);
@@ -160,7 +175,7 @@ actorTypes.forEach((actorType) => {
 
 			if (character !== undefined) {
 				if (value !== undefined) {
-					handleTypes.get(actorType)?.(character);
+					handleTypes.get(actorType)?.[0](character);
 				}
 
 				if (character === Player.Character) {
